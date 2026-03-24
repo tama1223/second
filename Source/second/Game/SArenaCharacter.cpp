@@ -2,8 +2,9 @@
 
 #include "Game/SArenaCharacter.h"
 
-#include "Camera/CameraComponent.h"
-#include "Camera/SCameraMode_TopDown.h"
+#include "Camera/HRBCameraComponent.h"
+#include "Camera/HRBCameraMode.h"
+#include "Camera/HRBCameraMode_TopDown.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "InputAction.h"
@@ -31,13 +32,15 @@ ASArenaCharacter::ASArenaCharacter()
 	GetCharacterMovement()->RotationRate = FRotator(0.0f, 540.0f, 0.0f);
 	GetCharacterMovement()->MaxWalkSpeed = MoveSpeed;
 
-	// 탑다운 카메라 컴포넌트 (SpringArm 없이 직접 위치 제어)
-	// 루트에 Attach하되, Absolute Location/Rotation을 켜서 부모 Transform에 영향받지 않도록 함
-	TopDownCameraComp = CreateDefaultSubobject<UCameraComponent>(TEXT("TopDownCamera"));
-	TopDownCameraComp->SetupAttachment(GetRootComponent());
-	TopDownCameraComp->SetUsingAbsoluteLocation(true);
-	TopDownCameraComp->SetUsingAbsoluteRotation(true);
-	TopDownCameraComp->bUsePawnControlRotation = false;
+	// HRBCameraComponent 생성 (Lyra 패턴)
+	HRBCameraComp = CreateDefaultSubobject<UHRBCameraComponent>(TEXT("HRBCamera"));
+	HRBCameraComp->SetupAttachment(GetRootComponent());
+	HRBCameraComp->SetUsingAbsoluteLocation(true);
+	HRBCameraComp->SetUsingAbsoluteRotation(true);
+	HRBCameraComp->bUsePawnControlRotation = false;
+
+	// 기본 카메라 모드 (BP에서 override 가능)
+	DefaultCameraModeClass = nullptr;
 
 	// Auto-possess
 	AutoPossessPlayer = EAutoReceiveInput::Player0;
@@ -47,38 +50,16 @@ void ASArenaCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 
-	// 카메라 모드 인스턴스 생성
-	CameraMode = NewObject<USCameraMode_TopDown>(this);
-
-	// PlayerController에 카메라 모드의 초기 뷰 적용
-	if (TopDownCameraComp)
+	// 카메라 모드 결정 델리게이트 바인딩
+	if (HRBCameraComp)
 	{
-		// 초기 위치 설정
-		CameraMode->UpdateView(GetActorLocation(), 0.0f);
-		TopDownCameraComp->SetWorldLocationAndRotation(
-			CameraMode->GetCameraLocation(),
-			CameraMode->GetCameraRotation()
-		);
-		TopDownCameraComp->FieldOfView = CameraMode->GetFieldOfView();
+		HRBCameraComp->DetermineCameraModeDelegate.BindUObject(this, &ThisClass::DetermineCameraMode);
 	}
 }
 
-void ASArenaCharacter::Tick(float DeltaTime)
+TSubclassOf<UHRBCameraMode> ASArenaCharacter::DetermineCameraMode() const
 {
-	Super::Tick(DeltaTime);
-
-	if (CameraMode && TopDownCameraComp)
-	{
-		// 카메라 모드 업데이트 - 타겟은 이 캐릭터
-		CameraMode->UpdateView(GetActorLocation(), DeltaTime);
-
-		// 카메라 컴포넌트에 결과 적용
-		TopDownCameraComp->SetWorldLocationAndRotation(
-			CameraMode->GetCameraLocation(),
-			CameraMode->GetCameraRotation()
-		);
-		TopDownCameraComp->FieldOfView = CameraMode->GetFieldOfView();
-	}
+	return DefaultCameraModeClass;
 }
 
 void ASArenaCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -154,7 +135,6 @@ void ASArenaCharacter::HandleMove(const FInputActionValue& Value)
 	}
 
 	// 탑다운에서의 이동: 카메라 기준이 아닌 월드 기준 (Yaw=0 고정 카메라)
-	// 카메라의 Yaw가 0이므로 W=+Y(forward), D=+X(right)로 매핑
 	const FVector MoveDirection = FVector(Axis.Y, Axis.X, 0.0f).GetSafeNormal();
 
 	if (!MoveDirection.IsNearlyZero())
@@ -174,8 +154,17 @@ void ASArenaCharacter::HandleZoom(const FInputActionValue& Value)
 {
 	const float ZoomDelta = Value.Get<float>();
 
-	if (CameraMode && !FMath::IsNearlyZero(ZoomDelta))
+	if (FMath::IsNearlyZero(ZoomDelta))
 	{
-		CameraMode->ApplyZoomInput(ZoomDelta);
+		return;
+	}
+
+	// HRBCameraComponent에서 활성 카메라 모드를 가져와 줌 적용
+	if (HRBCameraComp)
+	{
+		if (UHRBCameraMode_TopDown* TopDownMode = Cast<UHRBCameraMode_TopDown>(HRBCameraComp->GetActiveCameraMode()))
+		{
+			TopDownMode->ApplyZoomInput(ZoomDelta);
+		}
 	}
 }

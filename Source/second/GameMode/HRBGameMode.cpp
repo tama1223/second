@@ -1,0 +1,152 @@
+// Copyright HeroRoundBattle Project. All Rights Reserved.
+
+#include "GameMode/HRBGameMode.h"
+
+#include "GameMode/HRBExperienceDefinition.h"
+#include "GameMode/HRBExperienceManagerComponent.h"
+#include "Character/HRBPawnData.h"
+#include "GameFramework/GameStateBase.h"
+#include "GameFramework/PlayerController.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(HRBGameMode)
+
+AHRBGameMode::AHRBGameMode(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	// Pawn 스폰을 Experience 로드 완료까지 지연시키기 위해 기본 PawnClass를 nullptr로 설정
+	DefaultPawnClass = nullptr;
+}
+
+void AHRBGameMode::InitGameState()
+{
+	Super::InitGameState();
+
+	// GameState에 ExperienceManagerComponent 부착
+	AGameStateBase* GS = GameState;
+	check(GS);
+
+	UHRBExperienceManagerComponent* ExperienceComponent = NewObject<UHRBExperienceManagerComponent>(GS);
+	check(ExperienceComponent);
+	ExperienceComponent->RegisterComponent();
+
+	UE_LOG(LogTemp, Log, TEXT("[HRBGameMode] ExperienceManagerComponent를 GameState에 등록 완료"));
+}
+
+void AHRBGameMode::InitGame(const FString& MapName, const FString& Options, FString& ErrorMessage)
+{
+	Super::InitGame(MapName, Options, ErrorMessage);
+
+	// Experience 설정
+	if (!DefaultExperience.IsNull())
+	{
+		AGameStateBase* GS = GameState;
+		check(GS);
+
+		UHRBExperienceManagerComponent* ExperienceComponent = GS->FindComponentByClass<UHRBExperienceManagerComponent>();
+		check(ExperienceComponent);
+
+		// Experience 로드 완료 콜백 등록
+		ExperienceComponent->CallOrRegister_OnExperienceLoaded(
+			FOnHRBExperienceLoaded::FDelegate::CreateUObject(this, &ThisClass::OnExperienceLoaded));
+
+		// Experience 설정 (동기 로딩)
+		ExperienceComponent->SetCurrentExperience(DefaultExperience);
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[HRBGameMode] DefaultExperience가 설정되지 않음. 에디터에서 설정 필요."));
+	}
+}
+
+void AHRBGameMode::OnExperienceLoaded(const UHRBExperienceDefinition* CurrentExperience)
+{
+	UE_LOG(LogTemp, Log, TEXT("[HRBGameMode] Experience 로드 완료 - 대기 중인 플레이어를 스폰합니다."));
+
+	// 대기 중인 플레이어들 스폰 재시도
+	for (FConstPlayerControllerIterator Iterator = GetWorld()->GetPlayerControllerIterator(); Iterator; ++Iterator)
+	{
+		APlayerController* PC = Iterator->Get();
+		if (PC && PC->GetPawn() == nullptr)
+		{
+			if (PlayerCanRestart(PC))
+			{
+				RestartPlayer(PC);
+			}
+		}
+	}
+}
+
+bool AHRBGameMode::IsExperienceLoaded() const
+{
+	AGameStateBase* GS = GameState;
+	if (!GS)
+	{
+		return false;
+	}
+
+	UHRBExperienceManagerComponent* ExperienceComponent = GS->FindComponentByClass<UHRBExperienceManagerComponent>();
+	if (!ExperienceComponent)
+	{
+		return false;
+	}
+
+	return ExperienceComponent->IsExperienceLoaded();
+}
+
+const UHRBPawnData* AHRBGameMode::GetPawnDataForController(const AController* InController) const
+{
+	// Experience에서 PawnData를 가져옴
+	AGameStateBase* GS = GameState;
+	if (!GS)
+	{
+		return nullptr;
+	}
+
+	UHRBExperienceManagerComponent* ExperienceComponent = GS->FindComponentByClass<UHRBExperienceManagerComponent>();
+	if (!ExperienceComponent || !ExperienceComponent->IsExperienceLoaded())
+	{
+		return nullptr;
+	}
+
+	const UHRBExperienceDefinition* Experience = ExperienceComponent->GetCurrentExperienceChecked();
+	if (Experience && Experience->DefaultPawnData)
+	{
+		return Experience->DefaultPawnData;
+	}
+
+	return nullptr;
+}
+
+UClass* AHRBGameMode::GetDefaultPawnClassForController_Implementation(AController* InController)
+{
+	const UHRBPawnData* PawnData = GetPawnDataForController(InController);
+	if (PawnData && PawnData->PawnClass)
+	{
+		return PawnData->PawnClass;
+	}
+
+	return Super::GetDefaultPawnClassForController_Implementation(InController);
+}
+
+void AHRBGameMode::HandleStartingNewPlayer_Implementation(APlayerController* NewPlayer)
+{
+	// Experience가 아직 로드되지 않았으면 스폰을 지연
+	if (IsExperienceLoaded())
+	{
+		Super::HandleStartingNewPlayer_Implementation(NewPlayer);
+	}
+	else
+	{
+		UE_LOG(LogTemp, Log, TEXT("[HRBGameMode] Experience 미로드 - 플레이어 스폰 대기: %s"), *GetNameSafe(NewPlayer));
+	}
+}
+
+bool AHRBGameMode::PlayerCanRestart_Implementation(APlayerController* Player)
+{
+	if (!IsExperienceLoaded())
+	{
+		return false;
+	}
+
+	return Super::PlayerCanRestart_Implementation(Player);
+}

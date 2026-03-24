@@ -6,8 +6,9 @@
 #include "GameFramework/Character.h"
 #include "SArenaCharacter.generated.h"
 
-class UCameraComponent;
-class USCameraMode_TopDown;
+class UHRBCameraComponent;
+class UHRBCameraMode;
+class UHRBCameraMode_TopDown;
 class UInputAction;
 class UInputMappingContext;
 struct FInputActionValue;
@@ -16,7 +17,7 @@ struct FInputActionValue;
  * ASArenaCharacter
  *
  * 아레나 탑다운 시점 전용 캐릭터.
- * 탑다운 카메라 모드와 마우스 휠 줌을 내장한다.
+ * HRBCameraComponent를 사용하여 카메라 모드 기반 뷰를 제공한다.
  */
 UCLASS()
 class SECOND_API ASArenaCharacter : public ACharacter
@@ -28,17 +29,16 @@ public:
 
 protected:
 	virtual void BeginPlay() override;
-	virtual void Tick(float DeltaTime) override;
 	virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
 
 private:
-	// ---------- Components ----------
+	/** HRBCameraComponent (Lyra 패턴) */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera", meta = (AllowPrivateAccess = "true"))
-	TObjectPtr<UCameraComponent> TopDownCameraComp;
+	TObjectPtr<UHRBCameraComponent> HRBCameraComp;
 
-	// ---------- Camera Mode ----------
-	UPROPERTY()
-	TObjectPtr<USCameraMode_TopDown> CameraMode;
+	/** 카메라 모드 클래스 (에디터에서 설정 또는 기본값) */
+	UPROPERTY(EditDefaultsOnly, Category = "Camera")
+	TSubclassOf<UHRBCameraMode> DefaultCameraModeClass;
 
 	// ---------- Input ----------
 	UPROPERTY()
@@ -53,6 +53,9 @@ private:
 	// ---------- Tuning ----------
 	UPROPERTY(EditAnywhere, Category = "Movement")
 	float MoveSpeed = 600.0f;
+
+	// ---------- Callbacks ----------
+	TSubclassOf<UHRBCameraMode> DetermineCameraMode() const;
 
 	// ---------- Input Handlers ----------
 	void HandleMove(const FInputActionValue& Value);
