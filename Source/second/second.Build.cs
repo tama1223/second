@@ -12,7 +12,7 @@ public class second : ModuleRules
 	
 		PublicDependencyModuleNames.AddRange(new string[] {
 			"Core", "CoreUObject", "Engine", "InputCore", "EnhancedInput",
-			"NavigationSystem", "AIModule", "NetCore"
+			"NavigationSystem", "AIModule", "GameplayTasks", "NetCore"
 		});
 
 		PrivateDependencyModuleNames.AddRange(new string[] {

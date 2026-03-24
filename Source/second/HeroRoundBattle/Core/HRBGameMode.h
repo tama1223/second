@@ -7,6 +7,7 @@
 
 class AHRBHeroCharacter;
 class AHRBGameState;
+class AHRBAIController;
 
 UCLASS()
 class SECOND_API AHRBGameMode : public AGameModeBase
@@ -36,6 +37,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Round")
 	int32 HeroesPerPlayer = 3;
 
+	// AI opponent mode (1v1 vs AI)
+	UPROPERTY(EditAnywhere, Category = "AI")
+	bool bUseAIOpponent = true;
+
 	void OnHeroDied(AHRBHeroCharacter* DeadHero);
 
 protected:
@@ -51,8 +56,15 @@ protected:
 	void EndGame();
 	void CleanupHeroes();
 
+	// AI support
+	void SpawnAIControllersForPlayer(int32 PlayerIdx);
+	void CleanupAIControllers();
+
 	UPROPERTY()
 	TArray<AHRBHeroCharacter*> AllHeroes;
+
+	UPROPERTY()
+	TArray<AHRBAIController*> AIControllers;
 
 	UPROPERTY()
 	TArray<APlayerController*> Players;

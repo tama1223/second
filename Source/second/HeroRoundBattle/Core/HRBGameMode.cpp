@@ -4,6 +4,7 @@
 #include "HeroRoundBattle/Core/HRBPlayerController.h"
 #include "HeroRoundBattle/Hero/HRBHeroCharacter.h"
 #include "HeroRoundBattle/UI/HRBHUD.h"
+#include "HeroRoundBattle/AI/HRBAIController.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "EngineUtils.h"
 
@@ -41,23 +42,30 @@ void AHRBGameMode::Tick(float DeltaTime)
 	switch (HRBGameState->RoundPhase)
 	{
 	case ERoundPhase::WaitingForPlayers:
-		if (Players.Num() >= 2)
+	{
+		const int32 RequiredPlayers = bUseAIOpponent ? 1 : 2;
+		if (Players.Num() >= RequiredPlayers)
 		{
-			// Auto-assign races for MVP: Player0=Human, Player1=Undead
+			// Auto-assign races: Player0=Human, Player1(AI or human)=Undead
 			if (AHRBPlayerState* PS0 = Players[0]->GetPlayerState<AHRBPlayerState>())
 			{
 				PS0->PlayerIndex = 0;
 				PS0->SelectedRace = ERace::Human;
 			}
-			if (AHRBPlayerState* PS1 = Players[1]->GetPlayerState<AHRBPlayerState>())
+
+			if (!bUseAIOpponent)
 			{
-				PS1->PlayerIndex = 1;
-				PS1->SelectedRace = ERace::Undead;
+				if (AHRBPlayerState* PS1 = Players[1]->GetPlayerState<AHRBPlayerState>())
+				{
+					PS1->PlayerIndex = 1;
+					PS1->SelectedRace = ERace::Undead;
+				}
 			}
 
 			StartNextRound();
 		}
 		break;
+	}
 
 	case ERoundPhase::RoundCountdown:
 		PhaseTimer -= DeltaTime;
@@ -217,6 +225,12 @@ void AHRBGameMode::StartNextRound()
 		SpawnHeroesForPlayer(0, ERace::Human);
 		SpawnHeroesForPlayer(1, ERace::Undead);
 		bHeroesSpawned = true;
+
+		// Attach AI controllers to AI player's heroes
+		if (bUseAIOpponent)
+		{
+			SpawnAIControllersForPlayer(1);
+		}
 	}
 	else
 	{
@@ -411,8 +425,45 @@ void AHRBGameMode::SetPhase(ERoundPhase NewPhase)
 	}
 }
 
+void AHRBGameMode::SpawnAIControllersForPlayer(int32 PlayerIdx)
+{
+	for (AHRBHeroCharacter* Hero : AllHeroes)
+	{
+		if (Hero && Hero->GetOwningPlayer() == PlayerIdx)
+		{
+			FActorSpawnParameters Params;
+			Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+			AHRBAIController* AIC = GetWorld()->SpawnActor<AHRBAIController>(
+				AHRBAIController::StaticClass(), Hero->GetActorLocation(), FRotator::ZeroRotator, Params);
+
+			if (AIC)
+			{
+				AIC->Possess(Hero);
+				AIControllers.Add(AIC);
+				UE_LOG(LogTemp, Log, TEXT("AI Controller assigned to hero: %s"), *Hero->GetName());
+			}
+		}
+	}
+}
+
+void AHRBGameMode::CleanupAIControllers()
+{
+	for (AHRBAIController* AIC : AIControllers)
+	{
+		if (AIC)
+		{
+			AIC->UnPossess();
+			AIC->Destroy();
+		}
+	}
+	AIControllers.Empty();
+}
+
 void AHRBGameMode::CleanupHeroes()
 {
+	CleanupAIControllers();
+
 	for (AHRBHeroCharacter* Hero : AllHeroes)
 	{
 		if (Hero)
