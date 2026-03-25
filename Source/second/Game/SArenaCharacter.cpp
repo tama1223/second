@@ -42,8 +42,8 @@ ASArenaCharacter::ASArenaCharacter()
 	// 기본 카메라 모드 (BP에서 override 가능)
 	DefaultCameraModeClass = nullptr;
 
-	// Auto-possess
-	AutoPossessPlayer = EAutoReceiveInput::Player0;
+	// Auto-possess 비활성화 — GameMode의 RestartPlayer 흐름에만 의존
+	AutoPossessPlayer = EAutoReceiveInput::Disabled;
 }
 
 void ASArenaCharacter::BeginPlay()

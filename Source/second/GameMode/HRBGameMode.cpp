@@ -30,21 +30,10 @@ void AHRBGameMode::InitGameState()
 	ExperienceComponent->RegisterComponent();
 
 	UE_LOG(LogTemp, Log, TEXT("[HRBGameMode] ExperienceManagerComponent를 GameState에 등록 완료"));
-}
 
-void AHRBGameMode::InitGame(const FString& MapName, const FString& Options, FString& ErrorMessage)
-{
-	Super::InitGame(MapName, Options, ErrorMessage);
-
-	// Experience 설정
+	// InitGameState()에서 Experience 설정 — InitGame()보다 나중에 호출되므로 컴포넌트가 보장됨
 	if (!DefaultExperience.IsNull())
 	{
-		AGameStateBase* GS = GameState;
-		check(GS);
-
-		UHRBExperienceManagerComponent* ExperienceComponent = GS->FindComponentByClass<UHRBExperienceManagerComponent>();
-		check(ExperienceComponent);
-
 		// Experience 로드 완료 콜백 등록
 		ExperienceComponent->CallOrRegister_OnExperienceLoaded(
 			FOnHRBExperienceLoaded::FDelegate::CreateUObject(this, &ThisClass::OnExperienceLoaded));
@@ -56,6 +45,12 @@ void AHRBGameMode::InitGame(const FString& MapName, const FString& Options, FStr
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[HRBGameMode] DefaultExperience가 설정되지 않음. 에디터에서 설정 필요."));
 	}
+}
+
+void AHRBGameMode::InitGame(const FString& MapName, const FString& Options, FString& ErrorMessage)
+{
+	Super::InitGame(MapName, Options, ErrorMessage);
+	// Experience 로딩은 InitGameState()에서 처리 (컴포넌트 등록 순서 보장)
 }
 
 void AHRBGameMode::OnExperienceLoaded(const UHRBExperienceDefinition* CurrentExperience)
