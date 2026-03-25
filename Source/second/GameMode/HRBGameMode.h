@@ -59,4 +59,8 @@ protected:
 	/** 영웅 캐릭터 클래스 */
 	UPROPERTY(EditDefaultsOnly, Category = "HRB|Hero")
 	TSubclassOf<AHRBHeroCharacter> HeroCharacterClass;
+
+	/** 스폰된 영웅 목록 (PC 등록용 캐시) */
+	UPROPERTY()
+	TArray<TObjectPtr<AHRBHeroCharacter>> SpawnedHeroes;
 };

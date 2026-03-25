@@ -128,9 +128,10 @@ void AHRBGameMode::SpawnHeroes()
 		if (Hero)
 		{
 			Hero->HeroIndex = i;
+			SpawnedHeroes.Add(Hero);
 			UE_LOG(LogTemp, Log, TEXT("[HRBGameMode] Hero %d spawned at %s"), i, *SpawnLocation.ToString());
 
-			// PlayerController에 등록
+			// PlayerController가 이미 있으면 바로 등록
 			if (HRBPC)
 			{
 				HRBPC->RegisterHero(Hero);
@@ -197,6 +198,20 @@ void AHRBGameMode::HandleStartingNewPlayer_Implementation(APlayerController* New
 	if (IsExperienceLoaded())
 	{
 		Super::HandleStartingNewPlayer_Implementation(NewPlayer);
+
+		// 이미 스폰된 영웅들을 PlayerController에 등록
+		// (OnExperienceLoaded 시점에 PC가 없었을 경우 대비)
+		if (AHRBPlayerController* HRBPC = Cast<AHRBPlayerController>(NewPlayer))
+		{
+			for (AHRBHeroCharacter* Hero : SpawnedHeroes)
+			{
+				if (Hero)
+				{
+					HRBPC->RegisterHero(Hero);
+				}
+			}
+			UE_LOG(LogTemp, Log, TEXT("[HRBGameMode] %d heroes registered to PlayerController"), SpawnedHeroes.Num());
+		}
 	}
 	else
 	{
