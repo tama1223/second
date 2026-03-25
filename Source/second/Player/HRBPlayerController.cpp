@@ -3,6 +3,7 @@
 #include "Player/HRBPlayerController.h"
 
 #include "Hero/HRBHeroCharacter.h"
+#include "Player/HRBMoveMarker.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "InputAction.h"
@@ -57,6 +58,9 @@ void AHRBPlayerController::SetupInputComponent()
 	IA_SelectHero3 = NewObject<UInputAction>(this, TEXT("IA_SelectHero3"));
 	IA_SelectHero3->ValueType = EInputActionValueType::Boolean;
 
+	IA_MoveCommand = NewObject<UInputAction>(this, TEXT("IA_MoveCommand"));
+	IA_MoveCommand->ValueType = EInputActionValueType::Boolean;
+
 	// ---- MappingContext 생성 ----
 	IMC_Selection = NewObject<UInputMappingContext>(this, TEXT("IMC_Selection"));
 
@@ -64,6 +68,7 @@ void AHRBPlayerController::SetupInputComponent()
 	IMC_Selection->MapKey(IA_SelectHero1, EKeys::One);
 	IMC_Selection->MapKey(IA_SelectHero2, EKeys::Two);
 	IMC_Selection->MapKey(IA_SelectHero3, EKeys::Three);
+	IMC_Selection->MapKey(IA_MoveCommand, EKeys::RightMouseButton);
 
 	// ---- 매핑 컨텍스트 등록 ----
 	if (UEnhancedInputLocalPlayerSubsystem* Subsystem =
@@ -80,6 +85,7 @@ void AHRBPlayerController::SetupInputComponent()
 		EIC->BindAction(IA_SelectHero1, ETriggerEvent::Started, this, &ThisClass::HandleSelectHero1);
 		EIC->BindAction(IA_SelectHero2, ETriggerEvent::Started, this, &ThisClass::HandleSelectHero2);
 		EIC->BindAction(IA_SelectHero3, ETriggerEvent::Started, this, &ThisClass::HandleSelectHero3);
+		EIC->BindAction(IA_MoveCommand, ETriggerEvent::Started, this, &ThisClass::HandleMoveCommand);
 	}
 }
 
@@ -229,4 +235,58 @@ void AHRBPlayerController::HandleSelectHero2(const FInputActionValue& Value)
 void AHRBPlayerController::HandleSelectHero3(const FInputActionValue& Value)
 {
 	SelectHeroByIndex(2);
+}
+
+void AHRBPlayerController::HandleMoveCommand(const FInputActionValue& Value)
+{
+	if (SelectedHeroes.Num() == 0)
+	{
+		return;
+	}
+
+	FHitResult HitResult;
+	if (GetHitResultUnderCursor(ECC_Visibility, false, HitResult))
+	{
+		const FVector Destination = HitResult.Location;
+
+		// 선택된 모든 영웅에게 이동 명령
+		for (AHRBHeroCharacter* Hero : SelectedHeroes)
+		{
+			if (Hero)
+			{
+				Hero->MoveToLocation(Destination);
+			}
+		}
+
+		// 이동 마커 스폰
+		SpawnMoveMarker(Destination);
+
+		UE_LOG(LogTemp, Log, TEXT("[HRBPlayerController] Move command: %d heroes -> (%.0f, %.0f, %.0f)"),
+			SelectedHeroes.Num(), Destination.X, Destination.Y, Destination.Z);
+	}
+}
+
+void AHRBPlayerController::SpawnMoveMarker(const FVector& Location)
+{
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+
+	// 이전 마커가 아직 살아있으면 제거
+	if (IsValid(CurrentMoveMarker))
+	{
+		CurrentMoveMarker->Destroy();
+	}
+
+	FActorSpawnParameters SpawnParams;
+	SpawnParams.Owner = this;
+	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+	CurrentMoveMarker = World->SpawnActor<AHRBMoveMarker>(
+		AHRBMoveMarker::StaticClass(),
+		Location + FVector(0.0f, 0.0f, 5.0f), // 지면보다 약간 위
+		FRotator::ZeroRotator,
+		SpawnParams);
 }

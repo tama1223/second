@@ -7,6 +7,7 @@
 #include "HRBPlayerController.generated.h"
 
 class AHRBHeroCharacter;
+class AHRBMoveMarker;
 class UInputAction;
 class UInputMappingContext;
 struct FInputActionValue;
@@ -18,6 +19,7 @@ struct FInputActionValue;
  * - 좌클릭: 영웅 선택 (라인 트레이스)
  * - 1/2/3 키: 영웅 인덱스 전환
  * - 좌클릭 드래그: 범위 선택
+ * - 우클릭: 선택된 영웅에게 이동 명령
  */
 UCLASS()
 class SECOND_API AHRBPlayerController : public APlayerController
@@ -63,6 +65,9 @@ private:
 	TObjectPtr<UInputAction> IA_SelectHero3;
 
 	UPROPERTY()
+	TObjectPtr<UInputAction> IA_MoveCommand;
+
+	UPROPERTY()
 	TObjectPtr<UInputMappingContext> IMC_Selection;
 
 	// ---------- Selection Logic ----------
@@ -84,6 +89,14 @@ private:
 	void HandleSelectHero1(const FInputActionValue& Value);
 	void HandleSelectHero2(const FInputActionValue& Value);
 	void HandleSelectHero3(const FInputActionValue& Value);
+	void HandleMoveCommand(const FInputActionValue& Value);
+
+	/** 이동 목표 지점에 마커 스폰 */
+	void SpawnMoveMarker(const FVector& Location);
+
+	/** 현재 스폰된 이동 마커 (이전 마커 제거용) */
+	UPROPERTY()
+	TObjectPtr<AHRBMoveMarker> CurrentMoveMarker;
 
 	// ---------- Drag ----------
 	/** 드래그 판정 임계값 (픽셀) */

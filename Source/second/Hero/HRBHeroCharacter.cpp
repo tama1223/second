@@ -6,6 +6,8 @@
 #include "Components/StaticMeshComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "AIController.h"
+#include "Navigation/PathFollowingComponent.h"
 #include "UObject/ConstructorHelpers.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(HRBHeroCharacter)
@@ -14,9 +16,11 @@ AHRBHeroCharacter::AHRBHeroCharacter()
 {
 	PrimaryActorTick.bCanEverTick = false;
 
-	// Possess 하지 않음
+	// PlayerController로 Possess 하지 않음
 	AutoPossessPlayer = EAutoReceiveInput::Disabled;
-	AutoPossessAI = EAutoPossessAI::Disabled;
+	// AIController는 자동 Possess (이동 명령에 필요)
+	AutoPossessAI = EAutoPossessAI::PlacedInWorldOrSpawned;
+	AIControllerClass = AAIController::StaticClass();
 
 	// 캡슐 기본 크기
 	GetCapsuleComponent()->InitCapsuleSize(42.0f, 96.0f);
@@ -48,9 +52,32 @@ AHRBHeroCharacter::AHRBHeroCharacter()
 	GetCharacterMovement()->GravityScale = 1.0f;
 }
 
+void AHRBHeroCharacter::MoveToLocation(const FVector& Destination)
+{
+	MoveDestination = Destination;
+
+	if (AAIController* AIC = Cast<AAIController>(GetController()))
+	{
+		AIC->MoveToLocation(Destination, 50.0f, /*bStopOnOverlap=*/true,
+			/*bUsePathfinding=*/true, /*bProjectDestinationToNavigation=*/true);
+		UE_LOG(LogTemp, Log, TEXT("[HRBHeroCharacter] Hero %d: MoveToLocation (%.0f, %.0f, %.0f)"),
+			HeroIndex, Destination.X, Destination.Y, Destination.Z);
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[HRBHeroCharacter] Hero %d: No AIController, cannot move"), HeroIndex);
+	}
+}
+
 void AHRBHeroCharacter::BeginPlay()
 {
 	Super::BeginPlay();
+
+	// AIController가 없으면 스폰 (이동 명령에 필요)
+	if (!GetController())
+	{
+		SpawnDefaultController();
+	}
 
 	// BasicShapeMaterial로 BodyMesh 기본 머티리얼 설정
 	if (BodyMesh)

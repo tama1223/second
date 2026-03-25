@@ -8,6 +8,7 @@
 
 class UDecalComponent;
 class UStaticMeshComponent;
+class AAIController;
 
 /**
  * AHRBHeroCharacter
@@ -35,6 +36,14 @@ public:
 	/** 선택 상태 조회 */
 	UFUNCTION(BlueprintPure, Category = "HRB|Hero")
 	bool IsSelected() const { return bSelected; }
+
+	/** 지정된 위치로 이동 명령 */
+	UFUNCTION(BlueprintCallable, Category = "HRB|Hero")
+	void MoveToLocation(const FVector& Destination);
+
+	/** 현재 이동 목표 */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "HRB|Hero")
+	FVector MoveDestination;
 
 protected:
 	virtual void BeginPlay() override;
