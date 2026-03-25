@@ -208,9 +208,13 @@ void AHRBHeroCharacter::Die()
 
 	// 1초 후 Destroy
 	FTimerHandle DestroyTimerHandle;
-	GetWorldTimerManager().SetTimer(DestroyTimerHandle, [this]()
+	TWeakObjectPtr<AHRBHeroCharacter> WeakThis(this);
+	GetWorldTimerManager().SetTimer(DestroyTimerHandle, [WeakThis]()
 	{
-		Destroy();
+		if (WeakThis.IsValid())
+		{
+			WeakThis->Destroy();
+		}
 	}, 1.0f, false);
 }
 

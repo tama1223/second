@@ -10,7 +10,7 @@
 UHRBHealthBarComponent::UHRBHealthBarComponent()
 {
 	// 빌보드, 월드 스페이스
-	SetWidgetSpace(EWidgetSpace::Screen);
+	SetWidgetSpace(EWidgetSpace::World);
 	SetDrawAtDesiredSize(true);
 	SetRelativeLocation(FVector(0.0f, 0.0f, 130.0f));
 	SetCollisionEnabled(ECollisionEnabled::NoCollision);
