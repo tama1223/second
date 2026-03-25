@@ -87,8 +87,10 @@ void AHRBPlayerController::PlayerTick(float DeltaTime)
 {
 	Super::PlayerTick(DeltaTime);
 
-	// 드래그 중이면 현재 마우스 위치 갱신
-	if (bIsDragging)
+	// 마우스 좌클릭이 눌려있는 동안 현재 마우스 위치 갱신 (드래그 추적)
+	// bIsDragging은 DrawHUD에서 threshold 이상일 때 설정되므로,
+	// 위치 갱신은 버튼이 눌린 상태(DragStartScreen이 초기화된 이후)라면 항상 수행
+	if (IsInputKeyDown(EKeys::LeftMouseButton))
 	{
 		float MouseX, MouseY;
 		if (GetMousePosition(MouseX, MouseY))
