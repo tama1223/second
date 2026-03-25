@@ -3,6 +3,7 @@
 #include "Player/HRBPlayerController.h"
 
 #include "Hero/HRBHeroCharacter.h"
+#include "Hero/HRBEnemyHeroCharacter.h"
 #include "Player/HRBMoveMarker.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
@@ -148,7 +149,9 @@ void AHRBPlayerController::SelectHeroUnderCursor()
 	FHitResult HitResult;
 	if (GetHitResultUnderCursor(ECC_Pawn, false, HitResult))
 	{
-		if (AHRBHeroCharacter* HitHero = Cast<AHRBHeroCharacter>(HitResult.GetActor()))
+		AHRBHeroCharacter* HitHero = Cast<AHRBHeroCharacter>(HitResult.GetActor());
+		// 적 영웅은 선택 불가 (공격 대상이므로)
+		if (HitHero && !HitHero->IsA<AHRBEnemyHeroCharacter>())
 		{
 			ClearSelection();
 			HitHero->SetSelected(true);
@@ -245,6 +248,17 @@ void AHRBPlayerController::HandleMoveCommand(const FInputActionValue& Value)
 	}
 
 	FHitResult HitResult;
+	if (GetHitResultUnderCursor(ECC_Pawn, false, HitResult))
+	{
+		// 적 영웅을 클릭했으면 공격 명령
+		if (AHRBEnemyHeroCharacter* EnemyTarget = Cast<AHRBEnemyHeroCharacter>(HitResult.GetActor()))
+		{
+			CommandAttack(EnemyTarget);
+			return;
+		}
+	}
+
+	// 적이 아니면 이동 명령
 	if (GetHitResultUnderCursor(ECC_Visibility, false, HitResult))
 	{
 		const FVector Destination = HitResult.Location;
@@ -264,6 +278,35 @@ void AHRBPlayerController::HandleMoveCommand(const FInputActionValue& Value)
 		UE_LOG(LogTemp, Log, TEXT("[HRBPlayerController] Move command: %d heroes -> (%.0f, %.0f, %.0f)"),
 			SelectedHeroes.Num(), Destination.X, Destination.Y, Destination.Z);
 	}
+}
+
+void AHRBPlayerController::CommandAttack(AHRBEnemyHeroCharacter* Target)
+{
+	if (!Target || Target->bIsDead)
+	{
+		return;
+	}
+
+	for (AHRBHeroCharacter* Hero : SelectedHeroes)
+	{
+		if (Hero && !Hero->bIsDead)
+		{
+			// 사거리 내면 즉시 공격, 아니면 먼저 이동
+			const float Distance = FVector::Dist(Hero->GetActorLocation(), Target->GetActorLocation());
+			if (Distance <= Hero->AttackRange)
+			{
+				Hero->Attack(Target);
+			}
+			else
+			{
+				// 타겟 위치로 이동 후 공격은 추후 자동전투에서 처리
+				Hero->MoveToLocation(Target->GetActorLocation());
+			}
+		}
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("[HRBPlayerController] Attack command: %d heroes -> Enemy %d"),
+		SelectedHeroes.Num(), Target->HeroIndex);
 }
 
 void AHRBPlayerController::SpawnMoveMarker(const FVector& Location)

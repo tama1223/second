@@ -9,6 +9,8 @@
 class UDecalComponent;
 class UStaticMeshComponent;
 class AAIController;
+class UHRBHealthBarComponent;
+class AHRBGameMode;
 
 /**
  * AHRBHeroCharacter
@@ -45,8 +47,50 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "HRB|Hero")
 	FVector MoveDestination;
 
+	// ---------- 전투 스탯 (Step 5) ----------
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HRB|Combat")
+	float MaxHP = 200.0f;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "HRB|Combat")
+	float CurrentHP;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HRB|Combat")
+	float AttackDamage = 20.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HRB|Combat")
+	float Defense = 5.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HRB|Combat")
+	float AttackRange = 150.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HRB|Combat")
+	float AttackCooldown = 1.5f;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "HRB|Combat")
+	bool bIsDead = false;
+
+	/** TakeDamage override */
+	virtual float TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent,
+		AController* EventInstigator, AActor* DamageCauser) override;
+
+	/** 사망 처리 */
+	UFUNCTION(BlueprintCallable, Category = "HRB|Combat")
+	void Die();
+
+	/** 대상 공격 */
+	UFUNCTION(BlueprintCallable, Category = "HRB|Combat")
+	void Attack(AHRBHeroCharacter* Target);
+
 protected:
 	virtual void BeginPlay() override;
+
+	/** HP바 컴포넌트 */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "HRB|UI")
+	TObjectPtr<UHRBHealthBarComponent> HealthBarComp;
+
+	/** 마지막 공격 시간 (쿨다운 체크용) */
+	float LastAttackTime = -999.0f;
 
 private:
 	/** 선택 여부 */

@@ -6,6 +6,7 @@
 #include "GameMode/HRBExperienceManagerComponent.h"
 #include "Character/HRBPawnData.h"
 #include "Hero/HRBHeroCharacter.h"
+#include "Hero/HRBEnemyHeroCharacter.h"
 #include "Player/HRBPlayerController.h"
 #include "Player/HRBSelectionHUD.h"
 #include "GameFramework/GameStateBase.h"
@@ -31,6 +32,14 @@ AHRBGameMode::AHRBGameMode(const FObjectInitializer& ObjectInitializer)
 
 	// 기본 영웅 클래스
 	HeroCharacterClass = AHRBHeroCharacter::StaticClass();
+
+	// 기본 적 영웅 클래스
+	EnemyHeroCharacterClass = AHRBEnemyHeroCharacter::StaticClass();
+
+	// 적 스폰 위치 (반대편)
+	EnemySpawnLocations.Add(FVector(300.0f, 0.0f, 100.0f));
+	EnemySpawnLocations.Add(FVector(300.0f, -300.0f, 100.0f));
+	EnemySpawnLocations.Add(FVector(300.0f, 300.0f, 100.0f));
 }
 
 void AHRBGameMode::InitGameState()
@@ -88,6 +97,9 @@ void AHRBGameMode::OnExperienceLoaded(const UHRBExperienceDefinition* CurrentExp
 
 	// 영웅 3체 스폰
 	SpawnHeroes();
+
+	// 적 영웅 3체 스폰
+	SpawnEnemyHeroes();
 }
 
 void AHRBGameMode::SpawnHeroes()
@@ -227,4 +239,71 @@ bool AHRBGameMode::PlayerCanRestart_Implementation(APlayerController* Player)
 	}
 
 	return Super::PlayerCanRestart_Implementation(Player);
+}
+
+void AHRBGameMode::SpawnEnemyHeroes()
+{
+	UWorld* World = GetWorld();
+	if (!World || !EnemyHeroCharacterClass)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[HRBGameMode] SpawnEnemyHeroes 실패: World 또는 EnemyHeroCharacterClass가 null"));
+		return;
+	}
+
+	for (int32 i = 0; i < 3; ++i)
+	{
+		const FVector SpawnLocation = EnemySpawnLocations.IsValidIndex(i)
+			? EnemySpawnLocations[i]
+			: FVector(300.0f, (i - 1) * 300.0f, 100.0f);
+
+		FActorSpawnParameters SpawnParams;
+		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+
+		AHRBEnemyHeroCharacter* Enemy = World->SpawnActor<AHRBEnemyHeroCharacter>(
+			EnemyHeroCharacterClass,
+			SpawnLocation,
+			FRotator(0.0f, 180.0f, 0.0f), // 플레이어 쪽을 향하도록
+			SpawnParams);
+
+		if (Enemy)
+		{
+			Enemy->HeroIndex = i + 10; // 적은 10번대 인덱스로 구분
+			SpawnedEnemies.Add(Enemy);
+			UE_LOG(LogTemp, Log, TEXT("[HRBGameMode] Enemy Hero %d spawned at %s"), i, *SpawnLocation.ToString());
+		}
+	}
+}
+
+void AHRBGameMode::CheckRoundEnd()
+{
+	// 플레이어 팀 생존 확인
+	bool bPlayerTeamAlive = false;
+	for (const TObjectPtr<AHRBHeroCharacter>& Hero : SpawnedHeroes)
+	{
+		if (Hero && !Hero->bIsDead)
+		{
+			bPlayerTeamAlive = true;
+			break;
+		}
+	}
+
+	// 적 팀 생존 확인
+	bool bEnemyTeamAlive = false;
+	for (const TObjectPtr<AHRBEnemyHeroCharacter>& Enemy : SpawnedEnemies)
+	{
+		if (Enemy && !Enemy->bIsDead)
+		{
+			bEnemyTeamAlive = true;
+			break;
+		}
+	}
+
+	if (!bPlayerTeamAlive)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[GameMode] 라운드 종료 - 적 팀 승리"));
+	}
+	else if (!bEnemyTeamAlive)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[GameMode] 라운드 종료 - 플레이어 팀 승리"));
+	}
 }

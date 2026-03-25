@@ -9,6 +9,9 @@
 #include "AIController.h"
 #include "Navigation/PathFollowingComponent.h"
 #include "UObject/ConstructorHelpers.h"
+#include "UI/HRBHealthBarComponent.h"
+#include "GameMode/HRBGameMode.h"
+#include "TimerManager.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(HRBHeroCharacter)
 
@@ -50,6 +53,13 @@ AHRBHeroCharacter::AHRBHeroCharacter()
 
 	// 이동 비활성화 (AI가 직접 제어할 때까지)
 	GetCharacterMovement()->GravityScale = 1.0f;
+
+	// HP 초기화
+	CurrentHP = MaxHP;
+
+	// HP바 컴포넌트
+	HealthBarComp = CreateDefaultSubobject<UHRBHealthBarComponent>(TEXT("HealthBarComp"));
+	HealthBarComp->SetupAttachment(GetRootComponent());
 }
 
 void AHRBHeroCharacter::MoveToLocation(const FVector& Destination)
@@ -105,6 +115,13 @@ void AHRBHeroCharacter::BeginPlay()
 	{
 		SelectionDecal->SetVisibility(false);
 	}
+
+	// HP 초기화 및 HP바 업데이트
+	CurrentHP = MaxHP;
+	if (HealthBarComp)
+	{
+		HealthBarComp->UpdateHP(CurrentHP, MaxHP);
+	}
 }
 
 void AHRBHeroCharacter::SetSelected(bool bInSelected)
@@ -126,4 +143,106 @@ void AHRBHeroCharacter::SetSelected(bool bInSelected)
 
 	UE_LOG(LogTemp, Log, TEXT("[HRBHeroCharacter] Hero %d: %s"),
 		HeroIndex, bSelected ? TEXT("Selected (green)") : TEXT("Deselected (grey)"));
+}
+
+float AHRBHeroCharacter::TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent,
+	AController* EventInstigator, AActor* DamageCauser)
+{
+	if (bIsDead)
+	{
+		return 0.0f;
+	}
+
+	// 방어력 적용: 실제 데미지 = 공격력 - 방어력 (최소 1)
+	const float ActualDamage = FMath::Max(DamageAmount - Defense, 1.0f);
+
+	CurrentHP -= ActualDamage;
+
+	UE_LOG(LogTemp, Log, TEXT("[HRBHeroCharacter] Hero %d took %.1f damage (%.1f after defense). HP: %.1f/%.1f"),
+		HeroIndex, DamageAmount, ActualDamage, CurrentHP, MaxHP);
+
+	// HP바 업데이트
+	if (HealthBarComp)
+	{
+		HealthBarComp->UpdateHP(CurrentHP, MaxHP);
+	}
+
+	if (CurrentHP <= 0.0f)
+	{
+		CurrentHP = 0.0f;
+		Die();
+	}
+
+	return ActualDamage;
+}
+
+void AHRBHeroCharacter::Die()
+{
+	if (bIsDead)
+	{
+		return;
+	}
+
+	bIsDead = true;
+
+	UE_LOG(LogTemp, Log, TEXT("[HRBHeroCharacter] Hero %d has died!"), HeroIndex);
+
+	// AI 정지
+	if (AAIController* AIC = Cast<AAIController>(GetController()))
+	{
+		AIC->StopMovement();
+		AIC->UnPossess();
+	}
+
+	// 콜리전 비활성화
+	SetActorEnableCollision(false);
+
+	// GameMode에 라운드 종료 확인 요청
+	if (UWorld* World = GetWorld())
+	{
+		if (AHRBGameMode* GM = Cast<AHRBGameMode>(World->GetAuthGameMode()))
+		{
+			GM->CheckRoundEnd();
+		}
+	}
+
+	// 1초 후 Destroy
+	FTimerHandle DestroyTimerHandle;
+	GetWorldTimerManager().SetTimer(DestroyTimerHandle, [this]()
+	{
+		Destroy();
+	}, 1.0f, false);
+}
+
+void AHRBHeroCharacter::Attack(AHRBHeroCharacter* Target)
+{
+	if (!Target || Target->bIsDead || bIsDead)
+	{
+		return;
+	}
+
+	// 쿨다운 체크
+	const float CurrentTime = GetWorld()->GetTimeSeconds();
+	if (CurrentTime - LastAttackTime < AttackCooldown)
+	{
+		return;
+	}
+
+	// 사거리 체크
+	const float Distance = FVector::Dist(GetActorLocation(), Target->GetActorLocation());
+	if (Distance > AttackRange)
+	{
+		UE_LOG(LogTemp, Log, TEXT("[HRBHeroCharacter] Hero %d: Target out of range (%.0f > %.0f)"),
+			HeroIndex, Distance, AttackRange);
+		return;
+	}
+
+	LastAttackTime = CurrentTime;
+
+	// 데미지 적용
+	FDamageEvent DamageEvent;
+	Target->TakeDamage(AttackDamage, DamageEvent, GetController(), this);
+
+	UE_LOG(LogTemp, Log, TEXT("[HRBHeroCharacter] Hero %d attacked Hero %d for %.1f damage"),
+		HeroIndex, Target->HeroIndex, AttackDamage);
 }

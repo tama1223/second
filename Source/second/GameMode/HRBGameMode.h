@@ -11,6 +11,7 @@ class UHRBExperienceDefinition;
 class UHRBExperienceManagerComponent;
 class UHRBPawnData;
 class AHRBHeroCharacter;
+class AHRBEnemyHeroCharacter;
 
 /**
  * AHRBGameMode
@@ -47,6 +48,13 @@ protected:
 	/** 아레나에 영웅 3체 스폰 */
 	void SpawnHeroes();
 
+	/** 적 영웅 3체 스폰 */
+	void SpawnEnemyHeroes();
+
+public:
+	/** 라운드 종료 체크 (영웅 사망 시 호출) */
+	void CheckRoundEnd();
+
 protected:
 	/** 에디터에서 설정할 기본 Experience */
 	UPROPERTY(EditDefaultsOnly, Category = "HRB|Experience")
@@ -60,7 +68,19 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "HRB|Hero")
 	TSubclassOf<AHRBHeroCharacter> HeroCharacterClass;
 
+	/** 적 영웅 캐릭터 클래스 */
+	UPROPERTY(EditDefaultsOnly, Category = "HRB|Hero")
+	TSubclassOf<AHRBEnemyHeroCharacter> EnemyHeroCharacterClass;
+
+	/** 적 영웅 스폰 위치 (3개) */
+	UPROPERTY(EditDefaultsOnly, Category = "HRB|Hero")
+	TArray<FVector> EnemySpawnLocations;
+
 	/** 스폰된 영웅 목록 (PC 등록용 캐시) */
 	UPROPERTY()
 	TArray<TObjectPtr<AHRBHeroCharacter>> SpawnedHeroes;
+
+	/** 스폰된 적 영웅 목록 */
+	UPROPERTY()
+	TArray<TObjectPtr<AHRBEnemyHeroCharacter>> SpawnedEnemies;
 };

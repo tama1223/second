@@ -7,6 +7,7 @@
 #include "HRBPlayerController.generated.h"
 
 class AHRBHeroCharacter;
+class AHRBEnemyHeroCharacter;
 class AHRBMoveMarker;
 class UInputAction;
 class UInputMappingContext;
@@ -90,6 +91,9 @@ private:
 	void HandleSelectHero2(const FInputActionValue& Value);
 	void HandleSelectHero3(const FInputActionValue& Value);
 	void HandleMoveCommand(const FInputActionValue& Value);
+
+	/** 선택된 영웅들에게 공격 명령 */
+	void CommandAttack(AHRBEnemyHeroCharacter* Target);
 
 	/** 이동 목표 지점에 마커 스폰 */
 	void SpawnMoveMarker(const FVector& Location);
