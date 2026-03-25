@@ -10,6 +10,7 @@
 class UHRBExperienceDefinition;
 class UHRBExperienceManagerComponent;
 class UHRBPawnData;
+class AHRBHeroCharacter;
 
 /**
  * AHRBGameMode
@@ -43,8 +44,19 @@ protected:
 	/** Experience 로드 완료 여부 */
 	bool IsExperienceLoaded() const;
 
+	/** 아레나에 영웅 3체 스폰 */
+	void SpawnHeroes();
+
 protected:
 	/** 에디터에서 설정할 기본 Experience */
 	UPROPERTY(EditDefaultsOnly, Category = "HRB|Experience")
 	TSoftObjectPtr<UHRBExperienceDefinition> DefaultExperience;
+
+	/** 영웅 스폰 위치 (3개) */
+	UPROPERTY(EditDefaultsOnly, Category = "HRB|Hero")
+	TArray<FVector> HeroSpawnLocations;
+
+	/** 영웅 캐릭터 클래스 */
+	UPROPERTY(EditDefaultsOnly, Category = "HRB|Hero")
+	TSubclassOf<AHRBHeroCharacter> HeroCharacterClass;
 };

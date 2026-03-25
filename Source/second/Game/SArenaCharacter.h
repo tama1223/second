@@ -1,4 +1,4 @@
-// Fill out your copyright notice in the Description page of Project Settings.
+// Copyright HeroRoundBattle Project. All Rights Reserved.
 
 #pragma once
 
@@ -9,6 +9,7 @@
 class UHRBCameraComponent;
 class UHRBCameraMode;
 class UHRBCameraMode_TopDown;
+class UHRBPawnData;
 class UInputAction;
 class UInputMappingContext;
 struct FInputActionValue;
@@ -36,7 +37,7 @@ private:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UHRBCameraComponent> HRBCameraComp;
 
-	/** 카메라 모드 클래스 (에디터에서 설정 또는 기본값) */
+	/** 카메라 모드 클래스 폴백 (PawnData에 설정이 없을 때 사용) */
 	UPROPERTY(EditDefaultsOnly, Category = "Camera")
 	TSubclassOf<UHRBCameraMode> DefaultCameraModeClass;
 
@@ -55,7 +56,11 @@ private:
 	float MoveSpeed = 600.0f;
 
 	// ---------- Callbacks ----------
+	/** PawnData에서 카메라 모드를 조회, 폴백으로 DefaultCameraModeClass 사용 */
 	TSubclassOf<UHRBCameraMode> DetermineCameraMode() const;
+
+	/** 현재 Pawn에 대한 PawnData 조회 (GameMode 경유) */
+	const UHRBPawnData* GetCurrentPawnData() const;
 
 	// ---------- Input Handlers ----------
 	void HandleMove(const FInputActionValue& Value);

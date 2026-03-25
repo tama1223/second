@@ -5,8 +5,12 @@
 #include "GameMode/HRBExperienceDefinition.h"
 #include "GameMode/HRBExperienceManagerComponent.h"
 #include "Character/HRBPawnData.h"
+#include "Hero/HRBHeroCharacter.h"
+#include "Player/HRBPlayerController.h"
+#include "Player/HRBSelectionHUD.h"
 #include "GameFramework/GameStateBase.h"
 #include "GameFramework/PlayerController.h"
+#include "Engine/World.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(HRBGameMode)
 
@@ -15,6 +19,18 @@ AHRBGameMode::AHRBGameMode(const FObjectInitializer& ObjectInitializer)
 {
 	// Pawn 스폰을 Experience 로드 완료까지 지연시키기 위해 기본 PawnClass를 nullptr로 설정
 	DefaultPawnClass = nullptr;
+
+	// PlayerController와 HUD 클래스 설정
+	PlayerControllerClass = AHRBPlayerController::StaticClass();
+	HUDClass = AHRBSelectionHUD::StaticClass();
+
+	// 기본 영웅 스폰 위치 (삼각형 배치)
+	HeroSpawnLocations.Add(FVector(0.0f, 0.0f, 100.0f));
+	HeroSpawnLocations.Add(FVector(-200.0f, -200.0f, 100.0f));
+	HeroSpawnLocations.Add(FVector(-200.0f, 200.0f, 100.0f));
+
+	// 기본 영웅 클래스
+	HeroCharacterClass = AHRBHeroCharacter::StaticClass();
 }
 
 void AHRBGameMode::InitGameState()
@@ -66,6 +82,58 @@ void AHRBGameMode::OnExperienceLoaded(const UHRBExperienceDefinition* CurrentExp
 			if (PlayerCanRestart(PC))
 			{
 				RestartPlayer(PC);
+			}
+		}
+	}
+
+	// 영웅 3체 스폰
+	SpawnHeroes();
+}
+
+void AHRBGameMode::SpawnHeroes()
+{
+	UWorld* World = GetWorld();
+	if (!World || !HeroCharacterClass)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[HRBGameMode] SpawnHeroes 실패: World 또는 HeroCharacterClass가 null"));
+		return;
+	}
+
+	// 첫 번째 PlayerController를 찾아서 영웅 등록
+	AHRBPlayerController* HRBPC = nullptr;
+	for (FConstPlayerControllerIterator Iterator = World->GetPlayerControllerIterator(); Iterator; ++Iterator)
+	{
+		HRBPC = Cast<AHRBPlayerController>(Iterator->Get());
+		if (HRBPC)
+		{
+			break;
+		}
+	}
+
+	for (int32 i = 0; i < 3; ++i)
+	{
+		const FVector SpawnLocation = HeroSpawnLocations.IsValidIndex(i)
+			? HeroSpawnLocations[i]
+			: FVector(0.0f, i * 200.0f, 100.0f);
+
+		FActorSpawnParameters SpawnParams;
+		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+
+		AHRBHeroCharacter* Hero = World->SpawnActor<AHRBHeroCharacter>(
+			HeroCharacterClass,
+			SpawnLocation,
+			FRotator::ZeroRotator,
+			SpawnParams);
+
+		if (Hero)
+		{
+			Hero->HeroIndex = i;
+			UE_LOG(LogTemp, Log, TEXT("[HRBGameMode] Hero %d spawned at %s"), i, *SpawnLocation.ToString());
+
+			// PlayerController에 등록
+			if (HRBPC)
+			{
+				HRBPC->RegisterHero(Hero);
 			}
 		}
 	}

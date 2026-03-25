@@ -1,10 +1,12 @@
-// Fill out your copyright notice in the Description page of Project Settings.
+// Copyright HeroRoundBattle Project. All Rights Reserved.
 
 #include "Game/SArenaCharacter.h"
 
 #include "Camera/HRBCameraComponent.h"
 #include "Camera/HRBCameraMode.h"
 #include "Camera/HRBCameraMode_TopDown.h"
+#include "Character/HRBPawnData.h"
+#include "GameMode/HRBGameMode.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "InputAction.h"
@@ -39,10 +41,10 @@ ASArenaCharacter::ASArenaCharacter()
 	HRBCameraComp->SetUsingAbsoluteRotation(true);
 	HRBCameraComp->bUsePawnControlRotation = false;
 
-	// 기본 카메라 모드 (BP에서 override 가능)
+	// 기본 카메라 모드 폴백 (BP에서 override 가능)
 	DefaultCameraModeClass = nullptr;
 
-	// Auto-possess 비활성화 — GameMode의 RestartPlayer 흐름에만 의존
+	// Auto-possess 비활성화 - GameMode의 RestartPlayer 흐름에만 의존
 	AutoPossessPlayer = EAutoReceiveInput::Disabled;
 }
 
@@ -57,8 +59,33 @@ void ASArenaCharacter::BeginPlay()
 	}
 }
 
+const UHRBPawnData* ASArenaCharacter::GetCurrentPawnData() const
+{
+	if (const AController* MyController = GetController())
+	{
+		if (const UWorld* World = GetWorld())
+		{
+			if (const AHRBGameMode* GM = Cast<AHRBGameMode>(World->GetAuthGameMode()))
+			{
+				return GM->GetPawnDataForController(MyController);
+			}
+		}
+	}
+	return nullptr;
+}
+
 TSubclassOf<UHRBCameraMode> ASArenaCharacter::DetermineCameraMode() const
 {
+	// PawnData에서 DefaultCameraMode를 우선 사용
+	if (const UHRBPawnData* PawnData = GetCurrentPawnData())
+	{
+		if (PawnData->DefaultCameraMode)
+		{
+			return PawnData->DefaultCameraMode;
+		}
+	}
+
+	// 폴백: 캐릭터에 직접 설정된 DefaultCameraModeClass
 	return DefaultCameraModeClass;
 }
 
