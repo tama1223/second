@@ -50,4 +50,12 @@ private:
 	/** 시각적 표현용 스태틱 메시 (기본 실린더) */
 	UPROPERTY(VisibleAnywhere, Category = "HRB|Hero")
 	TObjectPtr<UStaticMeshComponent> BodyMesh;
+
+	/** 비선택 머티리얼 (회색) */
+	UPROPERTY()
+	TObjectPtr<UMaterialInstanceDynamic> NormalMaterial;
+
+	/** 선택 머티리얼 (초록) */
+	UPROPERTY()
+	TObjectPtr<UMaterialInstanceDynamic> SelectedMaterial;
 };

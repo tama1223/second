@@ -52,20 +52,30 @@ void AHRBHeroCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 
-	// 데칼 머티리얼을 동적으로 생성 (간단한 색상 데칼)
-	if (SelectionDecal)
+	// BasicShapeMaterial로 BodyMesh 기본 머티리얼 설정
+	if (BodyMesh)
 	{
 		UMaterial* BaseMat = LoadObject<UMaterial>(nullptr,
-			TEXT("/Engine/EngineMaterials/DefaultDeferredDecalMaterial"));
+			TEXT("/Engine/BasicShapes/BasicShapeMaterial"));
 		if (BaseMat)
 		{
-			UMaterialInstanceDynamic* DynMat = UMaterialInstanceDynamic::Create(BaseMat, this);
-			if (DynMat)
+			NormalMaterial = UMaterialInstanceDynamic::Create(BaseMat, this);
+			SelectedMaterial = UMaterialInstanceDynamic::Create(BaseMat, this);
+			if (NormalMaterial)
 			{
-				DynMat->SetVectorParameterValue(TEXT("Color"), FLinearColor(0.0f, 1.0f, 0.0f, 1.0f));
-				SelectionDecal->SetDecalMaterial(DynMat);
+				NormalMaterial->SetVectorParameterValue(TEXT("Color"), FLinearColor(0.8f, 0.8f, 0.8f, 1.0f)); // 회색
+				BodyMesh->SetMaterial(0, NormalMaterial);
+			}
+			if (SelectedMaterial)
+			{
+				SelectedMaterial->SetVectorParameterValue(TEXT("Color"), FLinearColor(0.0f, 1.0f, 0.2f, 1.0f)); // 초록
 			}
 		}
+	}
+
+	// 데칼은 사용하지 않음
+	if (SelectionDecal)
+	{
 		SelectionDecal->SetVisibility(false);
 	}
 }
@@ -74,20 +84,19 @@ void AHRBHeroCharacter::SetSelected(bool bInSelected)
 {
 	bSelected = bInSelected;
 
-	if (SelectionDecal)
-	{
-		SelectionDecal->SetVisibility(bSelected);
-	}
-
-	// 메시 아웃라인 효과 (커스텀 뎁스 기반)
+	// BodyMesh 머티리얼로 선택 상태 표시 (회색 ↔ 초록)
 	if (BodyMesh)
 	{
-		BodyMesh->SetRenderCustomDepth(bSelected);
-		BodyMesh->SetCustomDepthStencilValue(bSelected ? 1 : 0);
+		if (bSelected && SelectedMaterial)
+		{
+			BodyMesh->SetMaterial(0, SelectedMaterial);
+		}
+		else if (!bSelected && NormalMaterial)
+		{
+			BodyMesh->SetMaterial(0, NormalMaterial);
+		}
 	}
-	if (GetMesh())
-	{
-		GetMesh()->SetRenderCustomDepth(bSelected);
-		GetMesh()->SetCustomDepthStencilValue(bSelected ? 1 : 0);
-	}
+
+	UE_LOG(LogTemp, Log, TEXT("[HRBHeroCharacter] Hero %d: %s"),
+		HeroIndex, bSelected ? TEXT("Selected (green)") : TEXT("Deselected (grey)"));
 }
