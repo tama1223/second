@@ -20,6 +20,8 @@ class SECOND_API UHRBHealthBarComponent : public UWidgetComponent
 public:
 	UHRBHealthBarComponent();
 
+	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
+
 	/** HP 업데이트 */
 	void UpdateHP(float Current, float Max);
 
