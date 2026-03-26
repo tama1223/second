@@ -32,6 +32,17 @@ void AHRBEnemyAIController::OnPossess(APawn* InPawn)
 {
 	Super::OnPossess(InPawn);
 
+	// BP CDO 설정이 런타임에 안 먹히는 경우 대비: 경로에서 직접 로드
+	if (!BehaviorTree)
+	{
+		BehaviorTree = LoadObject<UBehaviorTree>(nullptr,
+			TEXT("/Game/HeroRoundBattle/AI/BT_HRBEnemy.BT_HRBEnemy"));
+		if (BehaviorTree)
+		{
+			UE_LOG(LogTemp, Log, TEXT("[HRBEnemyAIController] BT loaded from path for %s"), *GetNameSafe(InPawn));
+		}
+	}
+
 	if (BehaviorTree)
 	{
 		RunBehaviorTree(BehaviorTree);
