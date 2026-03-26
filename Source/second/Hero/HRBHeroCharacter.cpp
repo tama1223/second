@@ -12,6 +12,7 @@
 #include "UI/HRBHealthBarComponent.h"
 #include "GameMode/HRBGameMode.h"
 #include "TimerManager.h"
+#include "Engine/DamageEvents.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(HRBHeroCharacter)
 
