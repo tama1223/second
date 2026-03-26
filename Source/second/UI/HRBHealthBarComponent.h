@@ -6,8 +6,6 @@
 #include "Components/WidgetComponent.h"
 #include "HRBHealthBarComponent.generated.h"
 
-class UHRBHealthBarWidget;
-
 /**
  * UHRBHealthBarComponent
  *
@@ -25,11 +23,4 @@ public:
 	/** HP 업데이트 */
 	void UpdateHP(float Current, float Max);
 
-protected:
-	virtual void BeginPlay() override;
-
-private:
-	/** HP바 위젯 클래스 */
-	UPROPERTY(EditDefaultsOnly, Category = "HRB|UI")
-	TSubclassOf<UHRBHealthBarWidget> HealthBarWidgetClass;
 };
