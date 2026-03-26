@@ -9,8 +9,8 @@
 
 UHRBHealthBarComponent::UHRBHealthBarComponent()
 {
-	// 빌보드, 월드 스페이스
-	SetWidgetSpace(EWidgetSpace::World);
+	// Screen 모드: 항상 카메라를 향하는 2D 오버레이 (빌보드 효과)
+	SetWidgetSpace(EWidgetSpace::Screen);
 	SetDrawAtDesiredSize(true);
 	SetRelativeLocation(FVector(0.0f, 0.0f, 130.0f));
 	SetCollisionEnabled(ECollisionEnabled::NoCollision);
