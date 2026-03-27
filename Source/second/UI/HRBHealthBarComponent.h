@@ -10,7 +10,7 @@
  * UHRBHealthBarComponent
  *
  * 영웅 머리 위에 HP바를 표시하는 WidgetComponent.
- * 빌보드 방식, 월드 스페이스.
+ * Screen 스페이스 모드.
  */
 UCLASS()
 class SECOND_API UHRBHealthBarComponent : public UWidgetComponent
@@ -19,8 +19,6 @@ class SECOND_API UHRBHealthBarComponent : public UWidgetComponent
 
 public:
 	UHRBHealthBarComponent();
-
-	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
 	/** HP 업데이트 */
 	void UpdateHP(float Current, float Max);
