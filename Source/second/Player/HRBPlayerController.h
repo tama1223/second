@@ -46,6 +46,9 @@ public:
 	FVector2D DragStartScreen;
 	FVector2D DragCurrentScreen;
 
+	/** 공격이동 모드 여부 (HUD에서 드래그 억제용으로 참조) */
+	bool bAttackMoveMode = false;
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void SetupInputComponent() override;
@@ -67,6 +70,9 @@ private:
 
 	UPROPERTY()
 	TObjectPtr<UInputAction> IA_MoveCommand;
+
+	UPROPERTY()
+	TObjectPtr<UInputAction> IA_AttackMove;
 
 	UPROPERTY()
 	TObjectPtr<UInputMappingContext> IMC_Selection;
@@ -91,6 +97,17 @@ private:
 	void HandleSelectHero2(const FInputActionValue& Value);
 	void HandleSelectHero3(const FInputActionValue& Value);
 	void HandleMoveCommand(const FInputActionValue& Value);
+
+	// ---------- Attack Move (A+클릭) ----------
+	void HandleAttackMovePressed(const FInputActionValue& Value);
+	void HandleAttackMoveConfirm();
+
+	/** 공격이동 마커 스폰 (주황색) */
+	void SpawnAttackMoveMarker(const FVector& Location);
+
+	/** 이전 공격 타겟 (타겟 데칼 관리용) */
+	UPROPERTY()
+	TObjectPtr<AHRBHeroCharacter> PreviousAttackTarget;
 
 	/** 선택된 영웅들에게 공격 명령 */
 	void CommandAttack(AHRBEnemyHeroCharacter* Target);

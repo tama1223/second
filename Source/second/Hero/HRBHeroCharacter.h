@@ -8,9 +8,11 @@
 
 class UDecalComponent;
 class UStaticMeshComponent;
+class UTextRenderComponent;
 class AAIController;
 class UHRBHealthBarComponent;
 class AHRBGameMode;
+class AHRBEnemyHeroCharacter;
 
 /**
  * AHRBHeroCharacter
@@ -82,6 +84,43 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "HRB|Combat")
 	void Attack(AHRBHeroCharacter* Target);
 
+	// ---------- 공격이동 (A+클릭) ----------
+
+	/** 공격이동 감지 범위 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HRB|Combat")
+	float AttackMoveDetectionRange = 600.0f;
+
+	/** 공격이동 목적지 */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "HRB|Combat")
+	FVector AttackMoveDestination;
+
+	/** 공격이동 중 교전 대상 */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "HRB|Combat")
+	TObjectPtr<AHRBHeroCharacter> AttackMoveTarget;
+
+	/** 공격이동 시작: 이동 + 적 탐색 타이머 */
+	UFUNCTION(BlueprintCallable, Category = "HRB|Combat")
+	void AttackMoveToLocation(const FVector& Destination);
+
+	/** 공격이동 정지 */
+	UFUNCTION(BlueprintCallable, Category = "HRB|Combat")
+	void StopAttackMove();
+
+	// ---------- 전투 시각 피드백 ----------
+
+	/** 피격 시 빨간 플래시 */
+	void PlayHitReaction();
+
+	/** 피격 반응 타이머 완료 → 원래 색 복귀 */
+	void ResetHitReaction();
+
+	/** 타겟 데칼 표시/숨김 */
+	UFUNCTION(BlueprintCallable, Category = "HRB|Combat")
+	void SetTargeted(bool bInTargeted);
+
+	/** 공격 시 시각 이펙트 (피격자 위치에 히트 스피어) */
+	void PlayAttackEffect(AActor* Target);
+
 protected:
 	virtual void BeginPlay() override;
 
@@ -92,6 +131,36 @@ protected:
 	/** 마지막 공격 시간 (쿨다운 체크용) */
 	float LastAttackTime = -999.0f;
 
+	/** 공격이동 스캔 타이머 */
+	FTimerHandle AttackMoveScanTimer;
+
+	/** 공격이동 스캔 간격 (초) */
+	float AttackMoveScanInterval = 0.3f;
+
+	/** 공격이동 활성 여부 */
+	bool bIsAttackMoving = false;
+
+	/** 공격이동 타이머 콜백 */
+	void AttackMoveScanTick();
+
+	/** 감지 범위 내 가장 가까운 적 영웅 탐색 */
+	AHRBEnemyHeroCharacter* FindEnemyInDetectionRange();
+
+	/** 피격 반응 타이머 */
+	FTimerHandle HitReactionTimer;
+
+	/** 시각적 표현용 스태틱 메시 (기본 실린더) */
+	UPROPERTY(VisibleAnywhere, Category = "HRB|Hero")
+	TObjectPtr<UStaticMeshComponent> BodyMesh;
+
+	/** 비선택 머티리얼 — 서브클래스에서 덮어쓸 수 있음 (예: 적은 빨간색) */
+	UPROPERTY()
+	TObjectPtr<UMaterialInstanceDynamic> NormalMaterial;
+
+	/** 선택 머티리얼 (초록) */
+	UPROPERTY()
+	TObjectPtr<UMaterialInstanceDynamic> SelectedMaterial;
+
 private:
 	/** 선택 여부 */
 	bool bSelected = false;
@@ -100,15 +169,7 @@ private:
 	UPROPERTY(VisibleAnywhere, Category = "HRB|Hero")
 	TObjectPtr<UDecalComponent> SelectionDecal;
 
-	/** 시각적 표현용 스태틱 메시 (기본 실린더) */
-	UPROPERTY(VisibleAnywhere, Category = "HRB|Hero")
-	TObjectPtr<UStaticMeshComponent> BodyMesh;
-
-	/** 비선택 머티리얼 (회색) */
-	UPROPERTY()
-	TObjectPtr<UMaterialInstanceDynamic> NormalMaterial;
-
-	/** 선택 머티리얼 (초록) */
-	UPROPERTY()
-	TObjectPtr<UMaterialInstanceDynamic> SelectedMaterial;
+	/** 타겟 표시 데칼 (빨간 원) */
+	UPROPERTY(VisibleAnywhere, Category = "HRB|Combat")
+	TObjectPtr<UDecalComponent> TargetDecal;
 };

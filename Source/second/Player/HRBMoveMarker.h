@@ -27,10 +27,22 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "HRB|Marker")
 	float LifeSpan = 0.5f;
 
+	/** 마커 색상 (기본 녹색) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HRB|Marker")
+	FLinearColor MarkerColor = FLinearColor(0.0f, 1.0f, 0.2f, 1.0f);
+
+	/** 마커 색상을 변경 (스폰 후 호출 가능) */
+	UFUNCTION(BlueprintCallable, Category = "HRB|Marker")
+	void SetMarkerColor(const FLinearColor& NewColor);
+
 protected:
 	virtual void BeginPlay() override;
 
 private:
 	UPROPERTY(VisibleAnywhere, Category = "HRB|Marker")
 	TObjectPtr<UStaticMeshComponent> MarkerMesh;
+
+	/** 동적 머티리얼 인스턴스 (색상 변경용) */
+	UPROPERTY()
+	TObjectPtr<UMaterialInstanceDynamic> DynamicMaterial;
 };

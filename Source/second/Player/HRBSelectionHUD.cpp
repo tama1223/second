@@ -17,9 +17,8 @@ void AHRBSelectionHUD::DrawHUD()
 		return;
 	}
 
-	// 드래그 중인 경우에만 사각형 그리기
-	// bIsDragging가 false여도 마우스 버튼이 눌린 상태에서 threshold를 넘었는지 확인
-	if (!PC->IsInputKeyDown(EKeys::LeftMouseButton))
+	// 공격이동 모드이거나 마우스 버튼이 눌리지 않은 경우 사각형 안 그림
+	if (PC->bAttackMoveMode || !PC->IsInputKeyDown(EKeys::LeftMouseButton))
 	{
 		return;
 	}

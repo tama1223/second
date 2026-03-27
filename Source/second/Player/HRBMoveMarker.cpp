@@ -29,19 +29,28 @@ void AHRBMoveMarker::BeginPlay()
 {
 	Super::BeginPlay();
 
-	// 녹색 머티리얼 동적 생성
+	// 동적 머티리얼 생성 후 MarkerColor 적용
 	UMaterial* BaseMat = LoadObject<UMaterial>(nullptr,
 		TEXT("/Engine/BasicShapes/BasicShapeMaterial"));
 	if (BaseMat && MarkerMesh)
 	{
-		UMaterialInstanceDynamic* DynMat = UMaterialInstanceDynamic::Create(BaseMat, this);
-		if (DynMat)
+		DynamicMaterial = UMaterialInstanceDynamic::Create(BaseMat, this);
+		if (DynamicMaterial)
 		{
-			DynMat->SetVectorParameterValue(TEXT("Color"), FLinearColor(0.0f, 1.0f, 0.2f, 1.0f)); // 녹색
-			MarkerMesh->SetMaterial(0, DynMat);
+			DynamicMaterial->SetVectorParameterValue(TEXT("Color"), MarkerColor);
+			MarkerMesh->SetMaterial(0, DynamicMaterial);
 		}
 	}
 
 	// 자동 소멸
 	SetLifeSpan(LifeSpan);
+}
+
+void AHRBMoveMarker::SetMarkerColor(const FLinearColor& NewColor)
+{
+	MarkerColor = NewColor;
+	if (DynamicMaterial)
+	{
+		DynamicMaterial->SetVectorParameterValue(TEXT("Color"), MarkerColor);
+	}
 }

@@ -62,6 +62,9 @@ void AHRBPlayerController::SetupInputComponent()
 	IA_MoveCommand = NewObject<UInputAction>(this, TEXT("IA_MoveCommand"));
 	IA_MoveCommand->ValueType = EInputActionValueType::Boolean;
 
+	IA_AttackMove = NewObject<UInputAction>(this, TEXT("IA_AttackMove"));
+	IA_AttackMove->ValueType = EInputActionValueType::Boolean;
+
 	// ---- MappingContext 생성 ----
 	IMC_Selection = NewObject<UInputMappingContext>(this, TEXT("IMC_Selection"));
 
@@ -70,6 +73,7 @@ void AHRBPlayerController::SetupInputComponent()
 	IMC_Selection->MapKey(IA_SelectHero2, EKeys::Two);
 	IMC_Selection->MapKey(IA_SelectHero3, EKeys::Three);
 	IMC_Selection->MapKey(IA_MoveCommand, EKeys::RightMouseButton);
+	IMC_Selection->MapKey(IA_AttackMove, EKeys::A);
 
 	// ---- 매핑 컨텍스트 등록 ----
 	if (UEnhancedInputLocalPlayerSubsystem* Subsystem =
@@ -87,6 +91,7 @@ void AHRBPlayerController::SetupInputComponent()
 		EIC->BindAction(IA_SelectHero2, ETriggerEvent::Started, this, &ThisClass::HandleSelectHero2);
 		EIC->BindAction(IA_SelectHero3, ETriggerEvent::Started, this, &ThisClass::HandleSelectHero3);
 		EIC->BindAction(IA_MoveCommand, ETriggerEvent::Started, this, &ThisClass::HandleMoveCommand);
+		EIC->BindAction(IA_AttackMove, ETriggerEvent::Started, this, &ThisClass::HandleAttackMovePressed);
 	}
 }
 
@@ -95,9 +100,8 @@ void AHRBPlayerController::PlayerTick(float DeltaTime)
 	Super::PlayerTick(DeltaTime);
 
 	// 마우스 좌클릭이 눌려있는 동안 현재 마우스 위치 갱신 (드래그 추적)
-	// bIsDragging은 DrawHUD에서 threshold 이상일 때 설정되므로,
-	// 위치 갱신은 버튼이 눌린 상태(DragStartScreen이 초기화된 이후)라면 항상 수행
-	if (IsInputKeyDown(EKeys::LeftMouseButton))
+	// 공격이동 모드에서는 드래그 추적 안 함
+	if (!bAttackMoveMode && IsInputKeyDown(EKeys::LeftMouseButton))
 	{
 		float MouseX, MouseY;
 		if (GetMousePosition(MouseX, MouseY))
@@ -109,6 +113,12 @@ void AHRBPlayerController::PlayerTick(float DeltaTime)
 
 void AHRBPlayerController::HandleSelectStarted(const FInputActionValue& Value)
 {
+	// 공격이동 모드면 선택 시작을 무시 (HandleSelectCompleted에서 처리)
+	if (bAttackMoveMode)
+	{
+		return;
+	}
+
 	// 드래그 시작 위치 기록
 	float MouseX, MouseY;
 	if (GetMousePosition(MouseX, MouseY))
@@ -121,6 +131,13 @@ void AHRBPlayerController::HandleSelectStarted(const FInputActionValue& Value)
 
 void AHRBPlayerController::HandleSelectCompleted(const FInputActionValue& Value)
 {
+	// 공격이동 모드면 확정 처리
+	if (bAttackMoveMode)
+	{
+		HandleAttackMoveConfirm();
+		return;
+	}
+
 	float MouseX, MouseY;
 	if (GetMousePosition(MouseX, MouseY))
 	{
@@ -242,6 +259,14 @@ void AHRBPlayerController::HandleSelectHero3(const FInputActionValue& Value)
 
 void AHRBPlayerController::HandleMoveCommand(const FInputActionValue& Value)
 {
+	// 공격이동 모드 취소
+	if (bAttackMoveMode)
+	{
+		bAttackMoveMode = false;
+		CurrentMouseCursor = EMouseCursor::Default;
+		UE_LOG(LogTemp, Log, TEXT("[HRBPlayerController] AttackMove mode cancelled by right-click"));
+	}
+
 	if (SelectedHeroes.Num() == 0)
 	{
 		return;
@@ -280,12 +305,93 @@ void AHRBPlayerController::HandleMoveCommand(const FInputActionValue& Value)
 	}
 }
 
+// ==================== Attack Move ====================
+
+void AHRBPlayerController::HandleAttackMovePressed(const FInputActionValue& Value)
+{
+	if (SelectedHeroes.Num() == 0)
+	{
+		return;
+	}
+
+	bAttackMoveMode = true;
+	CurrentMouseCursor = EMouseCursor::Crosshairs;
+	UE_LOG(LogTemp, Log, TEXT("[HRBPlayerController] AttackMove mode activated (press LMB to confirm)"));
+}
+
+void AHRBPlayerController::HandleAttackMoveConfirm()
+{
+	// 공격이동 모드 해제
+	bAttackMoveMode = false;
+	CurrentMouseCursor = EMouseCursor::Default;
+
+	if (SelectedHeroes.Num() == 0)
+	{
+		return;
+	}
+
+	// 커서 아래 적이 있는지 확인
+	FHitResult HitResult;
+	if (GetHitResultUnderCursor(ECC_Pawn, false, HitResult))
+	{
+		if (AHRBEnemyHeroCharacter* EnemyTarget = Cast<AHRBEnemyHeroCharacter>(HitResult.GetActor()))
+		{
+			// 적 클릭 → 직접 공격 명령
+			CommandAttack(EnemyTarget);
+			UE_LOG(LogTemp, Log, TEXT("[HRBPlayerController] AttackMove: direct attack on enemy"));
+			return;
+		}
+	}
+
+	// 땅 클릭 → 공격이동 명령
+	if (GetHitResultUnderCursor(ECC_Visibility, false, HitResult))
+	{
+		const FVector Destination = HitResult.Location;
+
+		for (AHRBHeroCharacter* Hero : SelectedHeroes)
+		{
+			if (Hero && !Hero->bIsDead)
+			{
+				Hero->AttackMoveToLocation(Destination);
+			}
+		}
+
+		// 주황색 마커 스폰
+		SpawnAttackMoveMarker(Destination);
+
+		UE_LOG(LogTemp, Log, TEXT("[HRBPlayerController] AttackMove command: %d heroes -> (%.0f, %.0f, %.0f)"),
+			SelectedHeroes.Num(), Destination.X, Destination.Y, Destination.Z);
+	}
+}
+
+void AHRBPlayerController::SpawnAttackMoveMarker(const FVector& Location)
+{
+	// SpawnMoveMarker와 동일하되, 주황색으로 변경
+	SpawnMoveMarker(Location);
+	if (IsValid(CurrentMoveMarker))
+	{
+		CurrentMoveMarker->SetMarkerColor(FLinearColor(1.0f, 0.3f, 0.0f, 1.0f)); // 주황색
+	}
+}
+
+// ==================== Command Attack ====================
+
 void AHRBPlayerController::CommandAttack(AHRBEnemyHeroCharacter* Target)
 {
 	if (!Target || Target->bIsDead)
 	{
 		return;
 	}
+
+	// 이전 타겟의 타겟 데칼 해제
+	if (PreviousAttackTarget && IsValid(PreviousAttackTarget))
+	{
+		PreviousAttackTarget->SetTargeted(false);
+	}
+
+	// 새 타겟에 타겟 데칼 표시
+	Target->SetTargeted(true);
+	PreviousAttackTarget = Target;
 
 	for (AHRBHeroCharacter* Hero : SelectedHeroes)
 	{
