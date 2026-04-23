@@ -64,6 +64,7 @@ void AHRBPlayerController::SetupInputComponent()
 
 	IA_AttackMove = NewObject<UInputAction>(this, TEXT("IA_AttackMove"));
 	IA_AttackMove->ValueType = EInputActionValueType::Boolean;
+	IA_AttackMove->bConsumeInput = false;  // 하위 IMC(IA_Move)로 A 키 이벤트 전파 허용
 
 	// ---- MappingContext 생성 ----
 	IMC_Selection = NewObject<UInputMappingContext>(this, TEXT("IMC_Selection"));
@@ -309,6 +310,12 @@ void AHRBPlayerController::HandleMoveCommand(const FInputActionValue& Value)
 
 void AHRBPlayerController::HandleAttackMovePressed(const FInputActionValue& Value)
 {
+	// RMB 홀드 중이면 A는 카메라 좌측 팬 전용으로 사용 (공격이동 토글 차단)
+	if (IsInputKeyDown(EKeys::RightMouseButton))
+	{
+		return;
+	}
+
 	if (SelectedHeroes.Num() == 0)
 	{
 		return;
