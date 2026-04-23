@@ -154,27 +154,32 @@ void AHRBArenaCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputC
 
 void AHRBArenaCharacter::HandleMove(const FInputActionValue& Value)
 {
-	const FVector2D Axis = Value.Get<FVector2D>();
+	APlayerController* PC = Cast<APlayerController>(GetController());
+	if (!PC)
+	{
+		return;
+	}
 
+	// RMB 홀드 중일 때만 카메라 팬으로 동작 (RMB 단발 클릭은 IA_MoveCommand로 빠져나감)
+	if (!PC->IsInputKeyDown(EKeys::RightMouseButton))
+	{
+		return;
+	}
+
+	const FVector2D Axis = Value.Get<FVector2D>();
 	if (Axis.IsNearlyZero())
 	{
 		return;
 	}
 
-	// 탑다운에서의 이동: 카메라 기준이 아닌 월드 기준 (Yaw=0 고정 카메라)
-	const FVector MoveDirection = FVector(Axis.Y, Axis.X, 0.0f).GetSafeNormal();
+	// 월드 기준 팬: Swizzle/Negate로 만든 축을 그대로 XY로 투영
+	// (IMC_Arena가 W=+Y, S=-Y, D=+X, A=-X 로 매핑하므로 Axis.Y를 World X로, Axis.X를 World Y로 보낸다)
+	const FVector PanDirection = FVector(Axis.Y, Axis.X, 0.0f);
+	const float DT = GetWorld()->GetDeltaSeconds();
+	const FVector Delta = PanDirection * PanSpeed * DT;
 
-	if (!MoveDirection.IsNearlyZero())
-	{
-		// 캐릭터를 이동 방향으로 회전
-		const FRotator TargetRotation = MoveDirection.Rotation();
-		const float DT = GetWorld()->GetDeltaSeconds();
-		const FRotator SmoothedRotation = FMath::RInterpTo(GetActorRotation(), TargetRotation, DT, 10.0f);
-		SetActorRotation(SmoothedRotation);
-
-		// CharacterMovement를 통한 이동
-		AddMovementInput(MoveDirection, 1.0f);
-	}
+	// Sweep 없이 텔레포트식 이동 (카메라 폰은 가벼운 이동으로 충분)
+	AddActorWorldOffset(Delta, /*bSweep=*/ false, nullptr, ETeleportType::TeleportPhysics);
 }
 
 void AHRBArenaCharacter::HandleZoom(const FInputActionValue& Value)

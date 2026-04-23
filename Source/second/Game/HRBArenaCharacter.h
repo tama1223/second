@@ -41,6 +41,10 @@ private:
 	UPROPERTY(EditDefaultsOnly, Category = "Camera")
 	TSubclassOf<UHRBCameraMode> DefaultCameraModeClass;
 
+	/** RMB 홀드 + WASD 카메라 팬 속도 (uu/s) */
+	UPROPERTY(EditDefaultsOnly, Category = "HRB|Camera")
+	float PanSpeed = 2000.0f;
+
 	// ---------- Input ----------
 	UPROPERTY()
 	TObjectPtr<UInputAction> IA_Move;
