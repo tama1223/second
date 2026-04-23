@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Pawn.h"
-#include "STestPawn.generated.h"
+#include "HRBTestPawn.generated.h"
 
 class UCameraComponent;
 class UStaticMeshComponent;
@@ -13,12 +13,12 @@ class UInputMappingContext;
 struct FInputActionValue;
 
 UCLASS()
-class SECOND_API ASTestPawn : public APawn
+class SECOND_API AHRBTestPawn : public APawn
 {
 	GENERATED_BODY()
 
 public:
-	ASTestPawn();
+	AHRBTestPawn();
 
 protected:
 	virtual void BeginPlay() override;

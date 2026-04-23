@@ -1,6 +1,6 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
-#include "Game/STestPawn.h"
+#include "Game/HRBTestPawn.h"
 
 #include "Camera/CameraComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -10,16 +10,16 @@
 #include "InputMappingContext.h"
 #include "Engine/StaticMesh.h"
 
-ASTestPawn::ASTestPawn()
+AHRBTestPawn::AHRBTestPawn()
 {
 	PrimaryActorTick.bCanEverTick = false;
-	
+
 
 	// 빈 루트
 	USceneComponent* SceneRoot = CreateDefaultSubobject<USceneComponent>(TEXT("SceneRoot"));
 	SetRootComponent(SceneRoot);
 
-	
+
 	MeshComp = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Mesh"));
 	MeshComp->SetupAttachment(SceneRoot);
 
@@ -32,7 +32,7 @@ ASTestPawn::ASTestPawn()
 	MeshComp->SetSimulatePhysics(false);
 	MeshComp->SetCollisionProfileName(TEXT("Pawn"));
 	MeshComp->SetRelativeRotation(FRotator(-30.f, 0.f, 0.f));
-	
+
 
 	// Camera – 3rd person offset
 	CameraComp = CreateDefaultSubobject<UCameraComponent>(TEXT("Camera"));
@@ -44,13 +44,13 @@ ASTestPawn::ASTestPawn()
 	AutoPossessPlayer = EAutoReceiveInput::Player0;
 }
 
-void ASTestPawn::BeginPlay()
+void AHRBTestPawn::BeginPlay()
 {
 	Super::BeginPlay();
-	
+
 }
 
-void ASTestPawn::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
+void AHRBTestPawn::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {
 	Super::SetupPlayerInputComponent(PlayerInputComponent);
 
@@ -129,15 +129,15 @@ void ASTestPawn::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent
 
 	if (auto* EIC = Cast<UEnhancedInputComponent>(PlayerInputComponent))
 	{
-		EIC->BindAction(IA_Move, ETriggerEvent::Triggered, this, &ASTestPawn::HandleMove);
-		EIC->BindAction(IA_VerticalMove, ETriggerEvent::Triggered, this, &ASTestPawn::HandleVerticalMove);
-		EIC->BindAction(IA_Rotate, ETriggerEvent::Triggered, this, &ASTestPawn::HandleRotate);
+		EIC->BindAction(IA_Move, ETriggerEvent::Triggered, this, &AHRBTestPawn::HandleMove);
+		EIC->BindAction(IA_VerticalMove, ETriggerEvent::Triggered, this, &AHRBTestPawn::HandleVerticalMove);
+		EIC->BindAction(IA_Rotate, ETriggerEvent::Triggered, this, &AHRBTestPawn::HandleRotate);
 	}
 }
 
 // ---- Handlers ----
 
-void ASTestPawn::HandleMove(const FInputActionValue& Value)
+void AHRBTestPawn::HandleMove(const FInputActionValue& Value)
 {
 	const FVector2D Axis = Value.Get<FVector2D>();
 	// const FRotator Yaw(0.f, MeshComp->GetComponentRotation().Yaw, 0.f);
@@ -152,21 +152,21 @@ void ASTestPawn::HandleMove(const FInputActionValue& Value)
 	// AddActorLocalOffset((FVector(Axis.Y, Axis.X, 0.f)) * MoveSpeed * DT, true);
 
 	const FVector MoveDirection = (ForwardDirection * Axis.Y + RightDirection * Axis.X).GetSafeNormal();
-	const FRotator TargetRotation = MoveDirection.Rotation();	
+	const FRotator TargetRotation = MoveDirection.Rotation();
     const FRotator SmoothedRotation = FMath::RInterpTo(GetActorRotation(), TargetRotation, DT, 10.f);
 	SetActorRotation(SmoothedRotation);
 
-	AddActorWorldOffset((ForwardDirection * Axis.Y + RightDirection * Axis.X) * MoveSpeed * DT, true);	
+	AddActorWorldOffset((ForwardDirection * Axis.Y + RightDirection * Axis.X) * MoveSpeed * DT, true);
 }
 
-void ASTestPawn::HandleVerticalMove(const FInputActionValue& Value)
+void AHRBTestPawn::HandleVerticalMove(const FInputActionValue& Value)
 {
 	const float Axis = Value.Get<float>();
 	const float DT = GetWorld()->GetDeltaSeconds();
 	AddActorWorldOffset(FVector::UpVector * Axis * VerticalSpeed * DT, true);
 }
 
-void ASTestPawn::HandleRotate(const FInputActionValue& Value)
+void AHRBTestPawn::HandleRotate(const FInputActionValue& Value)
 {
 	const float Axis = Value.Get<float>();
 	const float DT = GetWorld()->GetDeltaSeconds();

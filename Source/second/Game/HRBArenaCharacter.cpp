@@ -1,6 +1,6 @@
 // Copyright HeroRoundBattle Project. All Rights Reserved.
 
-#include "Game/SArenaCharacter.h"
+#include "Game/HRBArenaCharacter.h"
 
 #include "Camera/HRBCameraComponent.h"
 #include "Camera/HRBCameraMode.h"
@@ -15,9 +15,9 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Components/CapsuleComponent.h"
 
-#include UE_INLINE_GENERATED_CPP_BY_NAME(SArenaCharacter)
+#include UE_INLINE_GENERATED_CPP_BY_NAME(HRBArenaCharacter)
 
-ASArenaCharacter::ASArenaCharacter()
+AHRBArenaCharacter::AHRBArenaCharacter()
 {
 	PrimaryActorTick.bCanEverTick = true;
 
@@ -48,7 +48,7 @@ ASArenaCharacter::ASArenaCharacter()
 	AutoPossessPlayer = EAutoReceiveInput::Disabled;
 }
 
-void ASArenaCharacter::BeginPlay()
+void AHRBArenaCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 
@@ -59,7 +59,7 @@ void ASArenaCharacter::BeginPlay()
 	}
 }
 
-const UHRBPawnData* ASArenaCharacter::GetCurrentPawnData() const
+const UHRBPawnData* AHRBArenaCharacter::GetCurrentPawnData() const
 {
 	if (const AController* MyController = GetController())
 	{
@@ -74,7 +74,7 @@ const UHRBPawnData* ASArenaCharacter::GetCurrentPawnData() const
 	return nullptr;
 }
 
-TSubclassOf<UHRBCameraMode> ASArenaCharacter::DetermineCameraMode() const
+TSubclassOf<UHRBCameraMode> AHRBArenaCharacter::DetermineCameraMode() const
 {
 	// PawnData에서 DefaultCameraMode를 우선 사용
 	if (const UHRBPawnData* PawnData = GetCurrentPawnData())
@@ -89,7 +89,7 @@ TSubclassOf<UHRBCameraMode> ASArenaCharacter::DetermineCameraMode() const
 	return DefaultCameraModeClass;
 }
 
-void ASArenaCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
+void AHRBArenaCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {
 	Super::SetupPlayerInputComponent(PlayerInputComponent);
 
@@ -147,12 +147,12 @@ void ASArenaCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
 	// ---- 액션 바인딩 ----
 	if (auto* EIC = Cast<UEnhancedInputComponent>(PlayerInputComponent))
 	{
-		EIC->BindAction(IA_Move, ETriggerEvent::Triggered, this, &ASArenaCharacter::HandleMove);
-		EIC->BindAction(IA_Zoom, ETriggerEvent::Triggered, this, &ASArenaCharacter::HandleZoom);
+		EIC->BindAction(IA_Move, ETriggerEvent::Triggered, this, &AHRBArenaCharacter::HandleMove);
+		EIC->BindAction(IA_Zoom, ETriggerEvent::Triggered, this, &AHRBArenaCharacter::HandleZoom);
 	}
 }
 
-void ASArenaCharacter::HandleMove(const FInputActionValue& Value)
+void AHRBArenaCharacter::HandleMove(const FInputActionValue& Value)
 {
 	const FVector2D Axis = Value.Get<FVector2D>();
 
@@ -177,7 +177,7 @@ void ASArenaCharacter::HandleMove(const FInputActionValue& Value)
 	}
 }
 
-void ASArenaCharacter::HandleZoom(const FInputActionValue& Value)
+void AHRBArenaCharacter::HandleZoom(const FInputActionValue& Value)
 {
 	const float ZoomDelta = Value.Get<float>();
 

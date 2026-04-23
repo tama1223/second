@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
-#include "SArenaCharacter.generated.h"
+#include "HRBArenaCharacter.generated.h"
 
 class UHRBCameraComponent;
 class UHRBCameraMode;
@@ -15,18 +15,18 @@ class UInputMappingContext;
 struct FInputActionValue;
 
 /**
- * ASArenaCharacter
+ * AHRBArenaCharacter
  *
  * 아레나 탑다운 시점 전용 캐릭터.
  * HRBCameraComponent를 사용하여 카메라 모드 기반 뷰를 제공한다.
  */
 UCLASS()
-class SECOND_API ASArenaCharacter : public ACharacter
+class SECOND_API AHRBArenaCharacter : public ACharacter
 {
 	GENERATED_BODY()
 
 public:
-	ASArenaCharacter();
+	AHRBArenaCharacter();
 
 protected:
 	virtual void BeginPlay() override;

@@ -4,18 +4,18 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/GameModeBase.h"
-#include "SGameModeBase.generated.h"
+#include "HRBGameModeBase.generated.h"
 
 /**
- * 
+ *
  */
 UCLASS()
-class SECOND_API ASGameModeBase : public AGameModeBase
+class SECOND_API AHRBGameModeBase : public AGameModeBase
 {
 	GENERATED_BODY()
 
 public:
-	ASGameModeBase();
+	AHRBGameModeBase();
 
 protected:
 	virtual void BeginPlay() override;
