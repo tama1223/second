@@ -20,7 +20,6 @@
 #include "TimerManager.h"
 #include "Engine/DamageEvents.h"
 #include "EngineUtils.h"
-#include "UI/HRBDamageNumberActor.h"
 #include "DrawDebugHelpers.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(HRBHeroCharacter)
@@ -43,25 +42,6 @@ AHRBHeroCharacter::AHRBHeroCharacter()
 
 	// 캡슐 기본 크기
 	GetCapsuleComponent()->InitCapsuleSize(42.0f, 96.0f);
-
-	// 시각적 표현용 실린더 메시
-	BodyMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("BodyMesh"));
-	BodyMesh->SetupAttachment(GetRootComponent());
-	BodyMesh->SetRelativeLocation(FVector(0.0f, 0.0f, 0.0f));
-	BodyMesh->SetRelativeScale3D(FVector(0.5f, 0.5f, 1.5f));
-	BodyMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision); // 콜리전은 캡슐이 담당
-
-	static ConstructorHelpers::FObjectFinder<UStaticMesh> CylinderFinder(
-		TEXT("/Engine/BasicShapes/Cylinder"));
-	if (CylinderFinder.Succeeded())
-	{
-		BodyMesh->SetStaticMesh(CylinderFinder.Object);
-	}
-
-	// SkeletalMesh가 시각 표현을 담당하므로 실린더는 숨김
-	// (콜리전은 선택/트레이스용으로 유지될 수 있어 건드리지 않음)
-	BodyMesh->SetVisibility(false);
-	BodyMesh->SetHiddenInGame(true);
 
 	// 선택 데칼 생성
 	SelectionDecal = CreateDefaultSubobject<UDecalComponent>(TEXT("SelectionDecal"));
@@ -168,27 +148,6 @@ void AHRBHeroCharacter::BeginPlay()
 		SpawnDefaultController();
 	}
 
-	// BasicShapeMaterial로 BodyMesh 기본 머티리얼 설정
-	if (BodyMesh)
-	{
-		UMaterial* BaseMat = LoadObject<UMaterial>(nullptr,
-			TEXT("/Engine/BasicShapes/BasicShapeMaterial"));
-		if (BaseMat)
-		{
-			NormalMaterial = UMaterialInstanceDynamic::Create(BaseMat, this);
-			SelectedMaterial = UMaterialInstanceDynamic::Create(BaseMat, this);
-			if (NormalMaterial)
-			{
-				NormalMaterial->SetVectorParameterValue(TEXT("Color"), FLinearColor(0.8f, 0.8f, 0.8f, 1.0f)); // 회색
-				BodyMesh->SetMaterial(0, NormalMaterial);
-			}
-			if (SelectedMaterial)
-			{
-				SelectedMaterial->SetVectorParameterValue(TEXT("Color"), FLinearColor(0.0f, 1.0f, 0.2f, 1.0f)); // 초록
-			}
-		}
-	}
-
 	// 선택 데칼은 숨김
 	if (SelectionDecal)
 	{
@@ -281,21 +240,14 @@ void AHRBHeroCharacter::SetSelected(bool bInSelected)
 {
 	bSelected = bInSelected;
 
-	// BodyMesh 머티리얼로 선택 상태 표시 (회색 ↔ 초록)
-	if (BodyMesh)
+	// 선택 데칼 on/off
+	if (SelectionDecal)
 	{
-		if (bSelected && SelectedMaterial)
-		{
-			BodyMesh->SetMaterial(0, SelectedMaterial);
-		}
-		else if (!bSelected && NormalMaterial)
-		{
-			BodyMesh->SetMaterial(0, NormalMaterial);
-		}
+		SelectionDecal->SetVisibility(bSelected);
 	}
 
 	UE_LOG(LogTemp, Log, TEXT("[HRBHeroCharacter] Hero %d: %s"),
-		HeroIndex, bSelected ? TEXT("Selected (green)") : TEXT("Deselected (grey)"));
+		HeroIndex, bSelected ? TEXT("Selected") : TEXT("Deselected"));
 }
 
 float AHRBHeroCharacter::TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent,
@@ -311,6 +263,12 @@ float AHRBHeroCharacter::TakeDamage(float DamageAmount, struct FDamageEvent cons
 
 	CurrentHP -= ActualDamage;
 
+	const AActor* Attacker = DamageCauser ? DamageCauser : (EventInstigator ? EventInstigator->GetPawn() : nullptr);
+	UE_LOG(LogTemp, Log, TEXT("[Combat] %s -> %s : %.0f damage (HP %.0f/%.0f)"),
+		Attacker ? *GetNameSafe(Attacker) : TEXT("Unknown"),
+		*GetNameSafe(this),
+		ActualDamage, CurrentHP, MaxHP);
+
 	UE_LOG(LogTemp, Log, TEXT("[HRBHeroCharacter] Hero %d took %.1f damage (%.1f after defense). HP: %.1f/%.1f"),
 		HeroIndex, DamageAmount, ActualDamage, CurrentHP, MaxHP);
 
@@ -318,27 +276,6 @@ float AHRBHeroCharacter::TakeDamage(float DamageAmount, struct FDamageEvent cons
 	if (HealthBarComp)
 	{
 		HealthBarComp->UpdateHP(CurrentHP, MaxHP);
-	}
-
-	// 피격 반응 (빨간 플래시)
-	PlayHitReaction();
-
-	// 데미지 숫자 팝업 스폰
-	if (UWorld* World = GetWorld())
-	{
-		// 탑다운 시점에서 겹치지 않도록 랜덤 XY 오프셋 + Z 높이
-		const float RandX = FMath::RandRange(-50.0f, 50.0f);
-		const float RandY = FMath::RandRange(-50.0f, 50.0f);
-		FVector SpawnLoc = GetActorLocation() + FVector(RandX, RandY, 200.0f);
-		FActorSpawnParameters SpawnParams;
-		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-
-		AHRBDamageNumberActor* DmgNum = World->SpawnActor<AHRBDamageNumberActor>(
-			AHRBDamageNumberActor::StaticClass(), SpawnLoc, FRotator::ZeroRotator, SpawnParams);
-		if (DmgNum)
-		{
-			DmgNum->InitDamage(ActualDamage);
-		}
 	}
 
 	if (CurrentHP <= 0.0f)
@@ -604,53 +541,6 @@ AHRBEnemyHeroCharacter* AHRBHeroCharacter::FindEnemyInDetectionRange()
 }
 
 // ==================== 전투 시각 피드백 ====================
-
-void AHRBHeroCharacter::PlayHitReaction()
-{
-	if (!BodyMesh)
-	{
-		return;
-	}
-
-	// BodyMesh를 빨간색으로 변경
-	UMaterial* BaseMat = LoadObject<UMaterial>(nullptr,
-		TEXT("/Engine/BasicShapes/BasicShapeMaterial"));
-	if (BaseMat)
-	{
-		UMaterialInstanceDynamic* HitMat = UMaterialInstanceDynamic::Create(BaseMat, this);
-		if (HitMat)
-		{
-			HitMat->SetVectorParameterValue(TEXT("Color"), FLinearColor(1.0f, 0.0f, 0.0f, 1.0f));
-			BodyMesh->SetMaterial(0, HitMat);
-		}
-	}
-
-	// 0.15초 후 원래 색으로 복귀
-	if (UWorld* World = GetWorld())
-	{
-		World->GetTimerManager().ClearTimer(HitReactionTimer);
-		World->GetTimerManager().SetTimer(
-			HitReactionTimer, this, &ThisClass::ResetHitReaction, 0.15f, false);
-	}
-}
-
-void AHRBHeroCharacter::ResetHitReaction()
-{
-	if (!BodyMesh)
-	{
-		return;
-	}
-
-	// 선택 상태에 따라 원래 머티리얼로 복귀
-	if (bSelected && SelectedMaterial)
-	{
-		BodyMesh->SetMaterial(0, SelectedMaterial);
-	}
-	else if (NormalMaterial)
-	{
-		BodyMesh->SetMaterial(0, NormalMaterial);
-	}
-}
 
 void AHRBHeroCharacter::SetTargeted(bool bInTargeted)
 {

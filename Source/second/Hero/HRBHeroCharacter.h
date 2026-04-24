@@ -7,7 +7,6 @@
 #include "HRBHeroCharacter.generated.h"
 
 class UDecalComponent;
-class UStaticMeshComponent;
 class UTextRenderComponent;
 class AAIController;
 class UHRBHealthBarComponent;
@@ -111,12 +110,6 @@ public:
 
 	// ---------- 전투 시각 피드백 ----------
 
-	/** 피격 시 빨간 플래시 */
-	void PlayHitReaction();
-
-	/** 피격 반응 타이머 완료 → 원래 색 복귀 */
-	void ResetHitReaction();
-
 	/** 타겟 데칼 표시/숨김 */
 	UFUNCTION(BlueprintCallable, Category = "HRB|Combat")
 	void SetTargeted(bool bInTargeted);
@@ -148,21 +141,6 @@ protected:
 
 	/** 감지 범위 내 가장 가까운 적 영웅 탐색 */
 	AHRBEnemyHeroCharacter* FindEnemyInDetectionRange();
-
-	/** 피격 반응 타이머 */
-	FTimerHandle HitReactionTimer;
-
-	/** 시각적 표현용 스태틱 메시 (기본 실린더) */
-	UPROPERTY(VisibleAnywhere, Category = "HRB|Hero")
-	TObjectPtr<UStaticMeshComponent> BodyMesh;
-
-	/** 비선택 머티리얼 — 서브클래스에서 덮어쓸 수 있음 (예: 적은 빨간색) */
-	UPROPERTY()
-	TObjectPtr<UMaterialInstanceDynamic> NormalMaterial;
-
-	/** 선택 머티리얼 (초록) */
-	UPROPERTY()
-	TObjectPtr<UMaterialInstanceDynamic> SelectedMaterial;
 
 	/** Walking 애니 (기본 재생, 항상 루프) */
 	UPROPERTY()
