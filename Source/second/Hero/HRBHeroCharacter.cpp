@@ -6,11 +6,15 @@
 #include "Components/DecalComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/CapsuleComponent.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "Components/TextRenderComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "AIController.h"
 #include "Navigation/PathFollowingComponent.h"
 #include "UObject/ConstructorHelpers.h"
+#include "Engine/SkeletalMesh.h"
+#include "Animation/AnimSequence.h"
+#include "Materials/MaterialInstance.h"
 #include "UI/HRBHealthBarComponent.h"
 #include "GameMode/HRBGameMode.h"
 #include "TimerManager.h"
@@ -33,8 +37,6 @@ AHRBHeroCharacter::AHRBHeroCharacter()
 	// 캡슐 기본 크기
 	GetCapsuleComponent()->InitCapsuleSize(42.0f, 96.0f);
 
-	GetMesh()->SetRelativeLocation(FVector(0.0f, 0.0f, -96.0f));
-
 	// 시각적 표현용 실린더 메시
 	BodyMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("BodyMesh"));
 	BodyMesh->SetupAttachment(GetRootComponent());
@@ -48,6 +50,11 @@ AHRBHeroCharacter::AHRBHeroCharacter()
 	{
 		BodyMesh->SetStaticMesh(CylinderFinder.Object);
 	}
+
+	// SkeletalMesh가 시각 표현을 담당하므로 실린더는 숨김
+	// (콜리전은 선택/트레이스용으로 유지될 수 있어 건드리지 않음)
+	BodyMesh->SetVisibility(false);
+	BodyMesh->SetHiddenInGame(true);
 
 	// 선택 데칼 생성
 	SelectionDecal = CreateDefaultSubobject<UDecalComponent>(TEXT("SelectionDecal"));
@@ -72,6 +79,48 @@ AHRBHeroCharacter::AHRBHeroCharacter()
 	// HP바 컴포넌트
 	HealthBarComp = CreateDefaultSubobject<UHRBHealthBarComponent>(TEXT("HealthBarComp"));
 	HealthBarComp->SetupAttachment(GetRootComponent());
+
+	// --- SkeletalMesh + Walking Animation ---
+	static ConstructorHelpers::FObjectFinder<USkeletalMesh> SkelMeshFinder(
+		TEXT("/Game/HeroRoundBattle/Characaters/Orc/Meshes/Meshy_AI_Animation_Walking_withSkin.Meshy_AI_Animation_Walking_withSkin"));
+	if (SkelMeshFinder.Succeeded())
+	{
+		GetMesh()->SetSkeletalMesh(SkelMeshFinder.Object);
+		// 메쉬 기본 자세 보정: ACharacter 규약(발바닥이 캡슐 바닥에 닿도록)
+		GetMesh()->SetRelativeLocation(FVector(0.f, 0.f, -90.f));
+		GetMesh()->SetRelativeRotation(FRotator(0.f, -90.f, 0.f));
+	}
+
+	// 그림자 및 데칼 수신 off
+	GetMesh()->SetCastShadow(false);
+	GetMesh()->SetReceivesDecals(false);
+
+	static ConstructorHelpers::FObjectFinder<UAnimSequence> WalkAnimFinder(
+		TEXT("/Game/HeroRoundBattle/Characaters/Orc/Animations/Meshy_AI_Animation_Walking_withSkin_Anim.Meshy_AI_Animation_Walking_withSkin_Anim"));
+	if (WalkAnimFinder.Succeeded())
+	{
+		WalkAnim = WalkAnimFinder.Object;
+		GetMesh()->SetAnimationMode(EAnimationMode::AnimationSingleNode);
+		// 생성자 CDO에 확실히 저장되는 방식 — AnimToPlay 필드 직접 세팅
+		GetMesh()->AnimationData.AnimToPlay = WalkAnim;
+		GetMesh()->AnimationData.bSavedLooping = true;
+		GetMesh()->AnimationData.bSavedPlaying = true;
+	}
+
+	static ConstructorHelpers::FObjectFinder<UAnimSequence> AttackAnimFinder(
+		TEXT("/Game/HeroRoundBattle/Characaters/Orc/Animations/Meshy_AI_Animation_Attack_withSkin_Anim.Meshy_AI_Animation_Attack_withSkin_Anim"));
+	if (AttackAnimFinder.Succeeded())
+	{
+		AttackAnim = AttackAnimFinder.Object;
+	}
+
+	// Hero 기본 Material (자식 Enemy가 Material_1로 override)
+	static ConstructorHelpers::FObjectFinder<UMaterialInstance> HeroMatFinder(
+		TEXT("/Game/HeroRoundBattle/Characaters/Orc/Materials/Material_2.Material_2"));
+	if (HeroMatFinder.Succeeded())
+	{
+		GetMesh()->SetMaterial(0, HeroMatFinder.Object);
+	}
 }
 
 void AHRBHeroCharacter::MoveToLocation(const FVector& Destination)
@@ -97,6 +146,14 @@ void AHRBHeroCharacter::MoveToLocation(const FVector& Destination)
 void AHRBHeroCharacter::BeginPlay()
 {
 	Super::BeginPlay();
+
+	// 일부 초기화 경로에서 생성자 애니 세팅이 누락될 수 있어 여기서 재보장
+	if (WalkAnim && GetMesh())
+	{
+		GetMesh()->SetAnimationMode(EAnimationMode::AnimationSingleNode);
+		GetMesh()->SetAnimation(WalkAnim);
+		GetMesh()->Play(true);
+	}
 
 	// AIController가 없으면 스폰 (이동 명령에 필요)
 	if (!GetController())
@@ -309,8 +366,27 @@ void AHRBHeroCharacter::Attack(AHRBHeroCharacter* Target)
 	// 공격 이펙트
 	PlayAttackEffect(Target);
 
+	// Attack 애니 1회 재생 → 종료 후 Walking 복귀
+	if (AttackAnim && GetMesh())
+	{
+		GetMesh()->SetAnimation(AttackAnim);
+		GetMesh()->Play(false);
+		const float Len = AttackAnim->GetPlayLength();
+		GetWorld()->GetTimerManager().SetTimer(AttackAnimReturnTimer, this,
+			&AHRBHeroCharacter::ReturnToWalkingAnim, Len, false);
+	}
+
 	UE_LOG(LogTemp, Log, TEXT("[HRBHeroCharacter] Hero %d attacked Hero %d for %.1f damage"),
 		HeroIndex, Target->HeroIndex, AttackDamage);
+}
+
+void AHRBHeroCharacter::ReturnToWalkingAnim()
+{
+	if (WalkAnim && GetMesh())
+	{
+		GetMesh()->SetAnimation(WalkAnim);
+		GetMesh()->Play(true);
+	}
 }
 
 // ==================== 공격이동 ====================

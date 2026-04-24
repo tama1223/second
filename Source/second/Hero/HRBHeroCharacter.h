@@ -13,6 +13,7 @@ class AAIController;
 class UHRBHealthBarComponent;
 class AHRBGameMode;
 class AHRBEnemyHeroCharacter;
+class UAnimSequence;
 
 /**
  * AHRBHeroCharacter
@@ -160,6 +161,20 @@ protected:
 	/** 선택 머티리얼 (초록) */
 	UPROPERTY()
 	TObjectPtr<UMaterialInstanceDynamic> SelectedMaterial;
+
+	/** Walking 애니 (기본 재생, 항상 루프) */
+	UPROPERTY()
+	TObjectPtr<UAnimSequence> WalkAnim;
+
+	/** Attack 애니 (공격 시 1회 재생 후 Walking 복귀) */
+	UPROPERTY()
+	TObjectPtr<UAnimSequence> AttackAnim;
+
+	/** Attack 애니 종료 → Walking 복귀 타이머 */
+	FTimerHandle AttackAnimReturnTimer;
+
+	/** Walking 애니로 복귀 */
+	void ReturnToWalkingAnim();
 
 private:
 	/** 선택 여부 */
