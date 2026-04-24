@@ -45,11 +45,8 @@ protected:
 	/** Experience 로드 완료 여부 */
 	bool IsExperienceLoaded() const;
 
-	/** 아레나에 영웅 3체 스폰 */
-	void SpawnHeroes();
-
-	/** 적 영웅 3체 스폰 */
-	void SpawnEnemyHeroes();
+	/** 특정 PlayerController에 팀에 맞는 3체 스폰 + PC에 등록 */
+	void SpawnTeamForController(APlayerController* PC, TSubclassOf<AHRBHeroCharacter> TeamClass, const TArray<FVector>& SpawnLocs);
 
 public:
 	/** 라운드 종료 체크 (영웅 사망 시 호출) */
@@ -83,4 +80,8 @@ protected:
 	/** 스폰된 적 영웅 목록 */
 	UPROPERTY()
 	TArray<TObjectPtr<AHRBEnemyHeroCharacter>> SpawnedEnemies;
+
+	/** 접속 순서로 팀 번호 할당 (0 = Hero 팀, 1 = Enemy 팀) */
+	UPROPERTY()
+	int32 NextTeamIndex = 0;
 };

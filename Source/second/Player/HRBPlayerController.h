@@ -105,12 +105,19 @@ private:
 	/** 공격이동 마커 스폰 (주황색) */
 	void SpawnAttackMoveMarker(const FVector& Location);
 
-	/** 이전 공격 타겟 (타겟 데칼 관리용) */
-	UPROPERTY()
-	TObjectPtr<AHRBHeroCharacter> PreviousAttackTarget;
+	// ---------- Server RPC (서버 Authoritative 명령) ----------
 
-	/** 선택된 영웅들에게 공격 명령 */
-	void CommandAttack(AHRBEnemyHeroCharacter* Target);
+	/** 이동 명령을 서버에 전달 */
+	UFUNCTION(Server, Reliable)
+	void ServerCommandMove(const TArray<AHRBHeroCharacter*>& InHeroes, FVector Location);
+
+	/** 공격 명령을 서버에 전달 */
+	UFUNCTION(Server, Reliable)
+	void ServerCommandAttack(const TArray<AHRBHeroCharacter*>& InHeroes, AHRBHeroCharacter* Target);
+
+	/** 공격이동 명령을 서버에 전달 */
+	UFUNCTION(Server, Reliable)
+	void ServerCommandAttackMove(const TArray<AHRBHeroCharacter*>& InHeroes, FVector Location);
 
 	/** 이동 목표 지점에 마커 스폰 */
 	void SpawnMoveMarker(const FVector& Location);

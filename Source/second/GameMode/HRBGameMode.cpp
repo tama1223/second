@@ -80,9 +80,9 @@ void AHRBGameMode::InitGame(const FString& MapName, const FString& Options, FStr
 
 void AHRBGameMode::OnExperienceLoaded(const UHRBExperienceDefinition* CurrentExperience)
 {
-	UE_LOG(LogTemp, Log, TEXT("[HRBGameMode] Experience 로드 완료 - 대기 중인 플레이어를 스폰합니다."));
+	UE_LOG(LogTemp, Log, TEXT("[HRBGameMode] Experience 로드 완료"));
 
-	// 대기 중인 플레이어들 스폰 재시도
+	// 대기 중인 플레이어들 스폰 재시도 (팀 배정은 HandleStartingNewPlayer에서 처리)
 	for (FConstPlayerControllerIterator Iterator = GetWorld()->GetPlayerControllerIterator(); Iterator; ++Iterator)
 	{
 		APlayerController* PC = Iterator->Get();
@@ -94,60 +94,57 @@ void AHRBGameMode::OnExperienceLoaded(const UHRBExperienceDefinition* CurrentExp
 			}
 		}
 	}
-
-	// 영웅 3체 스폰
-	SpawnHeroes();
-
-	// 적 영웅 3체 스폰
-	SpawnEnemyHeroes();
+	// 이미 접속한 PC들은 HandleStartingNewPlayer로 스폰 처리됨
 }
 
-void AHRBGameMode::SpawnHeroes()
+void AHRBGameMode::SpawnTeamForController(APlayerController* PC,
+	TSubclassOf<AHRBHeroCharacter> TeamClass, const TArray<FVector>& SpawnLocs)
 {
 	UWorld* World = GetWorld();
-	if (!World || !HeroCharacterClass)
+	if (!World || !TeamClass || !PC)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[HRBGameMode] SpawnHeroes 실패: World 또는 HeroCharacterClass가 null"));
+		UE_LOG(LogTemp, Warning, TEXT("[HRBGameMode] SpawnTeamForController 실패: World/TeamClass/PC null"));
 		return;
 	}
 
-	// 첫 번째 PlayerController를 찾아서 영웅 등록
-	AHRBPlayerController* HRBPC = nullptr;
-	for (FConstPlayerControllerIterator Iterator = World->GetPlayerControllerIterator(); Iterator; ++Iterator)
-	{
-		HRBPC = Cast<AHRBPlayerController>(Iterator->Get());
-		if (HRBPC)
-		{
-			break;
-		}
-	}
+	AHRBPlayerController* HRBPC = Cast<AHRBPlayerController>(PC);
 
 	for (int32 i = 0; i < 3; ++i)
 	{
-		const FVector SpawnLocation = HeroSpawnLocations.IsValidIndex(i)
-			? HeroSpawnLocations[i]
-			: FVector(0.0f, i * 200.0f, 100.0f);
+		const FVector SpawnLocation = SpawnLocs.IsValidIndex(i)
+			? SpawnLocs[i]
+			: FVector(i * 200.0f, 0.0f, 100.0f);
 
 		FActorSpawnParameters SpawnParams;
+		SpawnParams.Owner = PC; // Server RPC 라우팅을 위해 Owner 설정
 		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
 
 		AHRBHeroCharacter* Hero = World->SpawnActor<AHRBHeroCharacter>(
-			HeroCharacterClass,
+			TeamClass,
 			SpawnLocation,
 			FRotator::ZeroRotator,
 			SpawnParams);
 
 		if (Hero)
 		{
-			Hero->HeroIndex = i;
-			SpawnedHeroes.Add(Hero);
-			UE_LOG(LogTemp, Log, TEXT("[HRBGameMode] Hero %d spawned at %s"), i, *SpawnLocation.ToString());
+			Hero->HeroIndex = (NextTeamIndex * 10) + i; // Team 0: 0,1,2 / Team 1: 10,11,12
 
-			// PlayerController가 이미 있으면 바로 등록
+			if (TeamClass == EnemyHeroCharacterClass)
+			{
+				SpawnedEnemies.Add(Cast<AHRBEnemyHeroCharacter>(Hero));
+			}
+			else
+			{
+				SpawnedHeroes.Add(Hero);
+			}
+
 			if (HRBPC)
 			{
 				HRBPC->RegisterHero(Hero);
 			}
+
+			UE_LOG(LogTemp, Log, TEXT("[HRBGameMode] Spawned %s (HeroIndex=%d) at %s"),
+				*GetNameSafe(Hero), Hero->HeroIndex, *SpawnLocation.ToString());
 		}
 	}
 }
@@ -207,28 +204,29 @@ UClass* AHRBGameMode::GetDefaultPawnClassForController_Implementation(AControlle
 void AHRBGameMode::HandleStartingNewPlayer_Implementation(APlayerController* NewPlayer)
 {
 	// Experience가 아직 로드되지 않았으면 스폰을 지연
-	if (IsExperienceLoaded())
+	if (!IsExperienceLoaded())
 	{
-		Super::HandleStartingNewPlayer_Implementation(NewPlayer);
+		UE_LOG(LogTemp, Log, TEXT("[HRBGameMode] Experience 미로드 - 플레이어 스폰 대기: %s"), *GetNameSafe(NewPlayer));
+		return;
+	}
 
-		// 이미 스폰된 영웅들을 PlayerController에 등록
-		// (OnExperienceLoaded 시점에 PC가 없었을 경우 대비)
-		if (AHRBPlayerController* HRBPC = Cast<AHRBPlayerController>(NewPlayer))
-		{
-			for (AHRBHeroCharacter* Hero : SpawnedHeroes)
-			{
-				if (Hero)
-				{
-					HRBPC->RegisterHero(Hero);
-				}
-			}
-			UE_LOG(LogTemp, Log, TEXT("[HRBGameMode] %d heroes registered to PlayerController"), SpawnedHeroes.Num());
-		}
+	Super::HandleStartingNewPlayer_Implementation(NewPlayer);
+
+	// 접속 순서로 팀 배정 — 첫 PC: Team 0 (Hero), 두 번째 PC: Team 1 (Enemy)
+	if (NextTeamIndex == 0)
+	{
+		SpawnTeamForController(NewPlayer, HeroCharacterClass, HeroSpawnLocations);
+		UE_LOG(LogTemp, Log, TEXT("[HRBGameMode] %s -> Team 0 (Hero)"), *GetNameSafe(NewPlayer));
 	}
 	else
 	{
-		UE_LOG(LogTemp, Log, TEXT("[HRBGameMode] Experience 미로드 - 플레이어 스폰 대기: %s"), *GetNameSafe(NewPlayer));
+		SpawnTeamForController(NewPlayer,
+			TSubclassOf<AHRBHeroCharacter>(EnemyHeroCharacterClass),
+			EnemySpawnLocations);
+		UE_LOG(LogTemp, Log, TEXT("[HRBGameMode] %s -> Team 1 (Enemy)"), *GetNameSafe(NewPlayer));
 	}
+
+	NextTeamIndex++;
 }
 
 bool AHRBGameMode::PlayerCanRestart_Implementation(APlayerController* Player)
@@ -239,39 +237,6 @@ bool AHRBGameMode::PlayerCanRestart_Implementation(APlayerController* Player)
 	}
 
 	return Super::PlayerCanRestart_Implementation(Player);
-}
-
-void AHRBGameMode::SpawnEnemyHeroes()
-{
-	UWorld* World = GetWorld();
-	if (!World || !EnemyHeroCharacterClass)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[HRBGameMode] SpawnEnemyHeroes 실패: World 또는 EnemyHeroCharacterClass가 null"));
-		return;
-	}
-
-	for (int32 i = 0; i < 3; ++i)
-	{
-		const FVector SpawnLocation = EnemySpawnLocations.IsValidIndex(i)
-			? EnemySpawnLocations[i]
-			: FVector(300.0f, (i - 1) * 300.0f, 100.0f);
-
-		FActorSpawnParameters SpawnParams;
-		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
-
-		AHRBEnemyHeroCharacter* Enemy = World->SpawnActor<AHRBEnemyHeroCharacter>(
-			EnemyHeroCharacterClass,
-			SpawnLocation,
-			FRotator(0.0f, 180.0f, 0.0f), // 플레이어 쪽을 향하도록
-			SpawnParams);
-
-		if (Enemy)
-		{
-			Enemy->HeroIndex = i + 10; // 적은 10번대 인덱스로 구분
-			SpawnedEnemies.Add(Enemy);
-			UE_LOG(LogTemp, Log, TEXT("[HRBGameMode] Enemy Hero %d spawned at %s"), i, *SpawnLocation.ToString());
-		}
-	}
 }
 
 void AHRBGameMode::CheckRoundEnd()

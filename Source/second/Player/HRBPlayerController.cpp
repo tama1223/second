@@ -273,36 +273,92 @@ void AHRBPlayerController::HandleMoveCommand(const FInputActionValue& Value)
 		return;
 	}
 
+	// 선택된 영웅을 Raw 포인터로 변환 (RPC 직렬화용)
+	TArray<AHRBHeroCharacter*> Raw;
+	Raw.Reserve(SelectedHeroes.Num());
+	for (const TObjectPtr<AHRBHeroCharacter>& H : SelectedHeroes)
+	{
+		if (H)
+		{
+			Raw.Add(H);
+		}
+	}
+
 	FHitResult HitResult;
+	// 1. 적 영웅 클릭 여부 판단
 	if (GetHitResultUnderCursor(ECC_Pawn, false, HitResult))
 	{
-		// 적 영웅을 클릭했으면 공격 명령
 		if (AHRBEnemyHeroCharacter* EnemyTarget = Cast<AHRBEnemyHeroCharacter>(HitResult.GetActor()))
 		{
-			CommandAttack(EnemyTarget);
+			ServerCommandAttack(Raw, EnemyTarget);
+			UE_LOG(LogTemp, Log, TEXT("[HRBPlayerController] (Client) ServerCommandAttack -> Enemy %d"),
+				EnemyTarget->HeroIndex);
 			return;
 		}
 	}
 
-	// 적이 아니면 이동 명령
+	// 2. 바닥 클릭 → 이동 명령
 	if (GetHitResultUnderCursor(ECC_Visibility, false, HitResult))
 	{
 		const FVector Destination = HitResult.Location;
+		ServerCommandMove(Raw, Destination);
 
-		// 선택된 모든 영웅에게 이동 명령
-		for (AHRBHeroCharacter* Hero : SelectedHeroes)
-		{
-			if (Hero)
-			{
-				Hero->MoveToLocation(Destination);
-			}
-		}
-
-		// 이동 마커 스폰
+		// 이동 마커는 로컬 시각 피드백
 		SpawnMoveMarker(Destination);
 
-		UE_LOG(LogTemp, Log, TEXT("[HRBPlayerController] Move command: %d heroes -> (%.0f, %.0f, %.0f)"),
-			SelectedHeroes.Num(), Destination.X, Destination.Y, Destination.Z);
+		UE_LOG(LogTemp, Log, TEXT("[HRBPlayerController] (Client) ServerCommandMove: %d heroes -> (%.0f, %.0f, %.0f)"),
+			Raw.Num(), Destination.X, Destination.Y, Destination.Z);
+	}
+}
+
+// ==================== Server RPC ====================
+
+void AHRBPlayerController::ServerCommandMove_Implementation(const TArray<AHRBHeroCharacter*>& InHeroes, FVector Location)
+{
+	for (AHRBHeroCharacter* H : InHeroes)
+	{
+		if (H && !H->bIsDead)
+		{
+			H->MoveToLocation(Location);
+		}
+	}
+}
+
+void AHRBPlayerController::ServerCommandAttack_Implementation(const TArray<AHRBHeroCharacter*>& InHeroes, AHRBHeroCharacter* Target)
+{
+	if (!Target || Target->bIsDead)
+	{
+		return;
+	}
+
+	for (AHRBHeroCharacter* H : InHeroes)
+	{
+		if (!H || H->bIsDead)
+		{
+			continue;
+		}
+
+		const float Distance = FVector::Dist(H->GetActorLocation(), Target->GetActorLocation());
+		if (Distance <= H->AttackRange)
+		{
+			H->Attack(Target);
+		}
+		else
+		{
+			// 사거리 밖이면 타겟 위치로 이동 (자동 사거리 진입은 Phase 2 과제)
+			H->MoveToLocation(Target->GetActorLocation());
+		}
+	}
+}
+
+void AHRBPlayerController::ServerCommandAttackMove_Implementation(const TArray<AHRBHeroCharacter*>& InHeroes, FVector Location)
+{
+	for (AHRBHeroCharacter* H : InHeroes)
+	{
+		if (H && !H->bIsDead)
+		{
+			H->AttackMoveToLocation(Location);
+		}
 	}
 }
 
@@ -337,6 +393,16 @@ void AHRBPlayerController::HandleAttackMoveConfirm()
 		return;
 	}
 
+	TArray<AHRBHeroCharacter*> Raw;
+	Raw.Reserve(SelectedHeroes.Num());
+	for (const TObjectPtr<AHRBHeroCharacter>& H : SelectedHeroes)
+	{
+		if (H)
+		{
+			Raw.Add(H);
+		}
+	}
+
 	// 커서 아래 적이 있는지 확인
 	FHitResult HitResult;
 	if (GetHitResultUnderCursor(ECC_Pawn, false, HitResult))
@@ -344,8 +410,9 @@ void AHRBPlayerController::HandleAttackMoveConfirm()
 		if (AHRBEnemyHeroCharacter* EnemyTarget = Cast<AHRBEnemyHeroCharacter>(HitResult.GetActor()))
 		{
 			// 적 클릭 → 직접 공격 명령
-			CommandAttack(EnemyTarget);
-			UE_LOG(LogTemp, Log, TEXT("[HRBPlayerController] AttackMove: direct attack on enemy"));
+			ServerCommandAttack(Raw, EnemyTarget);
+			UE_LOG(LogTemp, Log, TEXT("[HRBPlayerController] (Client) AttackMove: ServerCommandAttack -> Enemy %d"),
+				EnemyTarget->HeroIndex);
 			return;
 		}
 	}
@@ -354,20 +421,13 @@ void AHRBPlayerController::HandleAttackMoveConfirm()
 	if (GetHitResultUnderCursor(ECC_Visibility, false, HitResult))
 	{
 		const FVector Destination = HitResult.Location;
+		ServerCommandAttackMove(Raw, Destination);
 
-		for (AHRBHeroCharacter* Hero : SelectedHeroes)
-		{
-			if (Hero && !Hero->bIsDead)
-			{
-				Hero->AttackMoveToLocation(Destination);
-			}
-		}
-
-		// 주황색 마커 스폰
+		// 주황색 마커 스폰 (로컬 시각 피드백)
 		SpawnAttackMoveMarker(Destination);
 
-		UE_LOG(LogTemp, Log, TEXT("[HRBPlayerController] AttackMove command: %d heroes -> (%.0f, %.0f, %.0f)"),
-			SelectedHeroes.Num(), Destination.X, Destination.Y, Destination.Z);
+		UE_LOG(LogTemp, Log, TEXT("[HRBPlayerController] (Client) ServerCommandAttackMove: %d heroes -> (%.0f, %.0f, %.0f)"),
+			Raw.Num(), Destination.X, Destination.Y, Destination.Z);
 	}
 }
 
@@ -379,47 +439,6 @@ void AHRBPlayerController::SpawnAttackMoveMarker(const FVector& Location)
 	{
 		CurrentMoveMarker->SetMarkerColor(FLinearColor(1.0f, 0.3f, 0.0f, 1.0f)); // 주황색
 	}
-}
-
-// ==================== Command Attack ====================
-
-void AHRBPlayerController::CommandAttack(AHRBEnemyHeroCharacter* Target)
-{
-	if (!Target || Target->bIsDead)
-	{
-		return;
-	}
-
-	// 이전 타겟의 타겟 데칼 해제
-	if (PreviousAttackTarget && IsValid(PreviousAttackTarget))
-	{
-		PreviousAttackTarget->SetTargeted(false);
-	}
-
-	// 새 타겟에 타겟 데칼 표시
-	Target->SetTargeted(true);
-	PreviousAttackTarget = Target;
-
-	for (AHRBHeroCharacter* Hero : SelectedHeroes)
-	{
-		if (Hero && !Hero->bIsDead)
-		{
-			// 사거리 내면 즉시 공격, 아니면 먼저 이동
-			const float Distance = FVector::Dist(Hero->GetActorLocation(), Target->GetActorLocation());
-			if (Distance <= Hero->AttackRange)
-			{
-				Hero->Attack(Target);
-			}
-			else
-			{
-				// 타겟 위치로 이동 후 공격은 추후 자동전투에서 처리
-				Hero->MoveToLocation(Target->GetActorLocation());
-			}
-		}
-	}
-
-	UE_LOG(LogTemp, Log, TEXT("[HRBPlayerController] Attack command: %d heroes -> Enemy %d"),
-		SelectedHeroes.Num(), Target->HeroIndex);
 }
 
 void AHRBPlayerController::SpawnMoveMarker(const FVector& Location)

@@ -56,7 +56,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HRB|Combat")
 	float MaxHP = 200.0f;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "HRB|Combat")
+	UPROPERTY(ReplicatedUsing = OnRep_CurrentHP, VisibleAnywhere, BlueprintReadOnly, Category = "HRB|Combat")
 	float CurrentHP;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HRB|Combat")
@@ -71,8 +71,15 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HRB|Combat")
 	float AttackCooldown = 1.5f;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "HRB|Combat")
+	UPROPERTY(Replicated, VisibleAnywhere, BlueprintReadOnly, Category = "HRB|Combat")
 	bool bIsDead = false;
+
+	/** CurrentHP 변경 시 클라이언트에서 호출 — HP바 갱신 */
+	UFUNCTION()
+	void OnRep_CurrentHP();
+
+	/** Replication 프로퍼티 등록 */
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 	/** TakeDamage override */
 	virtual float TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent,

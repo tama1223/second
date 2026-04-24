@@ -21,6 +21,7 @@
 #include "Engine/DamageEvents.h"
 #include "EngineUtils.h"
 #include "DrawDebugHelpers.h"
+#include "Net/UnrealNetwork.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(HRBHeroCharacter)
 
@@ -33,6 +34,10 @@ static TAutoConsoleVariable<int32> CVarHRBDebugCombat(
 AHRBHeroCharacter::AHRBHeroCharacter()
 {
 	PrimaryActorTick.bCanEverTick = true;
+
+	// Replication 활성화 (PvP 데디 구조)
+	bReplicates = true;
+	SetReplicateMovement(true);
 
 	// PlayerController로 Possess 하지 않음
 	AutoPossessPlayer = EAutoReceiveInput::Disabled;
@@ -110,8 +115,31 @@ AHRBHeroCharacter::AHRBHeroCharacter()
 	}
 }
 
+void AHRBHeroCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	DOREPLIFETIME(AHRBHeroCharacter, CurrentHP);
+	DOREPLIFETIME(AHRBHeroCharacter, bIsDead);
+}
+
+void AHRBHeroCharacter::OnRep_CurrentHP()
+{
+	// 서버에서 CurrentHP가 변경되면 클라이언트에서 HP바 갱신
+	if (HealthBarComp)
+	{
+		HealthBarComp->UpdateHP(CurrentHP, MaxHP);
+	}
+}
+
 void AHRBHeroCharacter::MoveToLocation(const FVector& Destination)
 {
+	// 서버 Authoritative
+	if (!HasAuthority())
+	{
+		return;
+	}
+
 	// 일반 이동 시 공격이동 취소
 	StopAttackMove();
 
@@ -253,6 +281,12 @@ void AHRBHeroCharacter::SetSelected(bool bInSelected)
 float AHRBHeroCharacter::TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent,
 	AController* EventInstigator, AActor* DamageCauser)
 {
+	// 서버 Authoritative — 클라이언트에서 호출되어도 무시
+	if (!HasAuthority())
+	{
+		return 0.0f;
+	}
+
 	if (bIsDead)
 	{
 		return 0.0f;
@@ -289,6 +323,12 @@ float AHRBHeroCharacter::TakeDamage(float DamageAmount, struct FDamageEvent cons
 
 void AHRBHeroCharacter::Die()
 {
+	// 서버 Authoritative
+	if (!HasAuthority())
+	{
+		return;
+	}
+
 	if (bIsDead)
 	{
 		return;
@@ -337,6 +377,12 @@ void AHRBHeroCharacter::Die()
 
 void AHRBHeroCharacter::Attack(AHRBHeroCharacter* Target)
 {
+	// 서버 Authoritative
+	if (!HasAuthority())
+	{
+		return;
+	}
+
 	if (!Target || Target->bIsDead || bIsDead)
 	{
 		return;
@@ -402,6 +448,12 @@ void AHRBHeroCharacter::ReturnToWalkingAnim()
 
 void AHRBHeroCharacter::AttackMoveToLocation(const FVector& Destination)
 {
+	// 서버 Authoritative
+	if (!HasAuthority())
+	{
+		return;
+	}
+
 	if (bIsDead)
 	{
 		return;
@@ -436,6 +488,12 @@ void AHRBHeroCharacter::AttackMoveToLocation(const FVector& Destination)
 
 void AHRBHeroCharacter::StopAttackMove()
 {
+	// 서버 Authoritative (타이머는 서버에서만 동작)
+	if (!HasAuthority())
+	{
+		return;
+	}
+
 	bIsAttackMoving = false;
 	AttackMoveTarget = nullptr;
 
