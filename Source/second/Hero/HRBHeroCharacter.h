@@ -30,6 +30,8 @@ class SECOND_API AHRBHeroCharacter : public ACharacter
 public:
 	AHRBHeroCharacter();
 
+	virtual void Tick(float DeltaTime) override;
+
 	/** 영웅 인덱스 (0, 1, 2) */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "HRB|Hero")
 	int32 HeroIndex;

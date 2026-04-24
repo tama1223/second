@@ -21,12 +21,19 @@
 #include "Engine/DamageEvents.h"
 #include "EngineUtils.h"
 #include "UI/HRBDamageNumberActor.h"
+#include "DrawDebugHelpers.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(HRBHeroCharacter)
 
+static TAutoConsoleVariable<int32> CVarHRBDebugCombat(
+	TEXT("HRB.Debug.ShowCombat"),
+	0,
+	TEXT("Show combat debug visualization (0: off, 1: on)"),
+	ECVF_Cheat);
+
 AHRBHeroCharacter::AHRBHeroCharacter()
 {
-	PrimaryActorTick.bCanEverTick = false;
+	PrimaryActorTick.bCanEverTick = true;
 
 	// PlayerController로 Possess 하지 않음
 	AutoPossessPlayer = EAutoReceiveInput::Disabled;
@@ -213,6 +220,63 @@ void AHRBHeroCharacter::BeginPlay()
 	}
 }
 
+void AHRBHeroCharacter::Tick(float DeltaTime)
+{
+	Super::Tick(DeltaTime);
+
+#if !UE_BUILD_SHIPPING
+	if (CVarHRBDebugCombat.GetValueOnGameThread() <= 0 || bIsDead)
+	{
+		return;
+	}
+
+	UWorld* World = GetWorld();
+	if (!World) { return; }
+
+	const FVector MyLoc = GetActorLocation();
+	const FVector AxisX(1.f, 0.f, 0.f);
+	const FVector AxisY(0.f, 1.f, 0.f);
+	const float Life = 0.f; // 1프레임
+
+	// 1) 공격 사거리 (초록)
+	DrawDebugCircle(World, MyLoc, AttackRange, 48,
+		FColor::Green, false, Life, 0, 1.5f, AxisX, AxisY, false);
+
+	// 2) 공격이동 감지 범위 (노란)
+	if (bIsAttackMoving)
+	{
+		DrawDebugCircle(World, MyLoc, AttackMoveDetectionRange, 64,
+			FColor::Yellow, false, Life, 0, 1.5f, AxisX, AxisY, false);
+	}
+
+	// 3) 이동 목표 (파랑)
+	if (!MoveDestination.IsNearlyZero())
+	{
+		DrawDebugLine(World, MyLoc, MoveDestination,
+			FColor::Blue, false, Life, 0, 2.f);
+		DrawDebugSphere(World, MoveDestination, 20.f, 12,
+			FColor::Blue, false, Life, 0, 2.f);
+	}
+
+	// 4) 공격이동 목적지 (주황)
+	if (bIsAttackMoving && !AttackMoveDestination.IsNearlyZero())
+	{
+		const FColor Orange(255, 140, 0);
+		DrawDebugLine(World, MyLoc, AttackMoveDestination,
+			Orange, false, Life, 0, 2.f);
+		DrawDebugSphere(World, AttackMoveDestination, 20.f, 12,
+			Orange, false, Life, 0, 2.f);
+	}
+
+	// 5) HP 오버레이
+	const FString HPText = FString::Printf(TEXT("HP %d / %d"),
+		FMath::RoundToInt(CurrentHP), FMath::RoundToInt(MaxHP));
+	const FColor TextColor = IsA<AHRBEnemyHeroCharacter>() ? FColor::Red : FColor::White;
+	DrawDebugString(World, MyLoc + FVector(0.f, 0.f, 150.f),
+		HPText, nullptr, TextColor, 0.f, true, 1.2f);
+#endif
+}
+
 void AHRBHeroCharacter::SetSelected(bool bInSelected)
 {
 	bSelected = bInSelected;
@@ -362,6 +426,14 @@ void AHRBHeroCharacter::Attack(AHRBHeroCharacter* Target)
 	// 데미지 적용
 	FDamageEvent DamageEvent;
 	Target->TakeDamage(AttackDamage, DamageEvent, GetController(), this);
+
+#if !UE_BUILD_SHIPPING
+	if (CVarHRBDebugCombat.GetValueOnGameThread() > 0 && Target)
+	{
+		DrawDebugLine(GetWorld(), GetActorLocation(), Target->GetActorLocation(),
+			FColor::Red, false, 0.3f, 0, 4.f);
+	}
+#endif
 
 	// 공격 이펙트
 	PlayAttackEffect(Target);

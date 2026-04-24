@@ -6,6 +6,8 @@
 #include "Hero/HRBEnemyHeroCharacter.h"
 #include "EngineUtils.h"
 #include "TimerManager.h"
+#include "DrawDebugHelpers.h"
+#include "HAL/IConsoleManager.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(HRBEnemyAIController)
 
@@ -65,6 +67,17 @@ void AHRBEnemyAIController::AITick()
 		// 3. 사거리 밖이면 이동
 		MoveToActor(CurrentTarget, MyHero->AttackRange * 0.8f);
 	}
+
+#if !UE_BUILD_SHIPPING
+	static IConsoleVariable* DebugCVar =
+		IConsoleManager::Get().FindConsoleVariable(TEXT("HRB.Debug.ShowCombat"));
+	if (DebugCVar && DebugCVar->GetInt() > 0 && CurrentTarget)
+	{
+		DrawDebugLine(GetWorld(),
+			MyHero->GetActorLocation(), CurrentTarget->GetActorLocation(),
+			FColor::Red, false, AITickInterval + 0.1f, 0, 3.f);
+	}
+#endif
 }
 
 AHRBHeroCharacter* AHRBEnemyAIController::FindClosestTarget()
