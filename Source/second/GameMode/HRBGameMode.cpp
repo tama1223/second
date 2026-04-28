@@ -164,22 +164,16 @@ void AHRBGameMode::SpawnTeamForController(APlayerController* PC,
 			AvgLoc /= Count;
 		}
 
-		// 팀 구분: HeroCharacterClass 면 Hero 팀(+X 향함), 아니면 Enemy 팀(-X 향함)
+		// TopDown 카메라 모드는 회전 무관(자체 DefaultPivotRotation 사용) → 회전 변경 안 함, 위치만 이동
 		const bool bIsHeroTeam = (TeamClass == HeroCharacterClass);
-		const FRotator FaceRot = bIsHeroTeam
-			? FRotator(0.f, 0.f, 0.f)        // Hero 팀: +X 방향(상대 쪽)
-			: FRotator(0.f, 180.f, 0.f);     // Enemy 팀: -X 방향(상대 쪽)
+		const FVector NewLoc = AvgLoc + FVector(0.f, 0.f, 200.f);
 
-		CameraPawn->SetActorLocationAndRotation(
-			AvgLoc + FVector(0.f, 0.f, 50.f),
-			FaceRot,
-			/*bSweep=*/ false,
-			/*OutSweepHitResult=*/ nullptr,
+		CameraPawn->SetActorLocation(NewLoc, /*bSweep=*/ false, /*OutSweepHitResult=*/ nullptr,
 			ETeleportType::TeleportPhysics);
 
 		UE_LOG(LogTemp, Log,
 			TEXT("[HRBGameMode] Camera Pawn moved to team center: %s @ %s (Team=%s)"),
-			*CameraPawn->GetName(), *AvgLoc.ToString(),
+			*CameraPawn->GetName(), *NewLoc.ToString(),
 			bIsHeroTeam ? TEXT("Hero") : TEXT("Enemy"));
 	}
 	else

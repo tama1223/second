@@ -14,7 +14,7 @@
  * 고정된 아레나 영역 위에서 내려다보는 시점을 제공한다.
  * 줌 인/아웃을 지원한다.
  */
-UCLASS(Abstract, Blueprintable)
+UCLASS(Blueprintable)
 class SECOND_API UHRBCameraMode_TopDown : public UHRBCameraMode
 {
 	GENERATED_BODY()

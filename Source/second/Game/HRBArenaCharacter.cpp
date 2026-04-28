@@ -41,8 +41,8 @@ AHRBArenaCharacter::AHRBArenaCharacter()
 	HRBCameraComp->SetUsingAbsoluteRotation(true);
 	HRBCameraComp->bUsePawnControlRotation = false;
 
-	// 기본 카메라 모드 폴백 (BP에서 override 가능)
-	DefaultCameraModeClass = nullptr;
+	// 기본 카메라 모드 폴백 — PawnData에 DefaultCameraMode 미설정 시 TopDown 사용
+	DefaultCameraModeClass = UHRBCameraMode_TopDown::StaticClass();
 
 	// Auto-possess 비활성화 - GameMode의 RestartPlayer 흐름에만 의존
 	AutoPossessPlayer = EAutoReceiveInput::Disabled;
