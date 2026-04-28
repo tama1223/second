@@ -11,7 +11,6 @@ class UTextRenderComponent;
 class AAIController;
 class UHRBHealthBarComponent;
 class AHRBGameMode;
-class AHRBEnemyHeroCharacter;
 class UAnimSequence;
 
 /**
@@ -31,9 +30,20 @@ public:
 
 	virtual void Tick(float DeltaTime) override;
 
-	/** 영웅 인덱스 (0, 1, 2) */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "HRB|Hero")
+	/** 영웅 인덱스 (0~9 = Hero팀, 10~19 = Enemy팀) — Replicated */
+	UPROPERTY(Replicated, VisibleAnywhere, BlueprintReadOnly, Category = "HRB|Hero")
 	int32 HeroIndex;
+
+	/**
+	 * 같은 팀 여부 판별.
+	 * HeroIndex 10단위 그룹이 동일하면 같은 팀 (0~9 = Hero팀, 10~19 = Enemy팀).
+	 */
+	UFUNCTION(BlueprintPure, Category = "HRB|Hero")
+	bool IsSameTeam(const AHRBHeroCharacter* Other) const
+	{
+		if (!Other) { return false; }
+		return (HeroIndex / 10) == (Other->HeroIndex / 10);
+	}
 
 	/** 선택 상태 설정 */
 	UFUNCTION(BlueprintCallable, Category = "HRB|Hero")
@@ -146,8 +156,8 @@ protected:
 	/** 공격이동 타이머 콜백 */
 	void AttackMoveScanTick();
 
-	/** 감지 범위 내 가장 가까운 적 영웅 탐색 */
-	AHRBEnemyHeroCharacter* FindEnemyInDetectionRange();
+	/** 감지 범위 내 가장 가까운 적 영웅 탐색 (IsSameTeam으로 같은 팀 제외) */
+	AHRBHeroCharacter* FindEnemyInDetectionRange();
 
 	/** Walking 애니 (기본 재생, 항상 루프) */
 	UPROPERTY()

@@ -119,6 +119,7 @@ void AHRBHeroCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Ou
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
+	DOREPLIFETIME(AHRBHeroCharacter, HeroIndex);
 	DOREPLIFETIME(AHRBHeroCharacter, CurrentHP);
 	DOREPLIFETIME(AHRBHeroCharacter, bIsDead);
 }
@@ -548,7 +549,7 @@ void AHRBHeroCharacter::AttackMoveScanTick()
 	// 타겟이 없거나 사망 → 새 적 탐색
 	AttackMoveTarget = nullptr;
 
-	AHRBEnemyHeroCharacter* FoundEnemy = FindEnemyInDetectionRange();
+	AHRBHeroCharacter* FoundEnemy = FindEnemyInDetectionRange();
 	if (FoundEnemy)
 	{
 		// 적 발견 → 교전
@@ -580,7 +581,7 @@ void AHRBHeroCharacter::AttackMoveScanTick()
 	// 아직 이동 중이면 계속 스캔
 }
 
-AHRBEnemyHeroCharacter* AHRBHeroCharacter::FindEnemyInDetectionRange()
+AHRBHeroCharacter* AHRBHeroCharacter::FindEnemyInDetectionRange()
 {
 	UWorld* World = GetWorld();
 	if (!World)
@@ -589,22 +590,29 @@ AHRBEnemyHeroCharacter* AHRBHeroCharacter::FindEnemyInDetectionRange()
 	}
 
 	const FVector MyLocation = GetActorLocation();
-	AHRBEnemyHeroCharacter* ClosestEnemy = nullptr;
+	AHRBHeroCharacter* ClosestEnemy = nullptr;
 	float ClosestDistance = MAX_FLT;
 
-	for (TActorIterator<AHRBEnemyHeroCharacter> It(World); It; ++It)
+	// 모든 HRBHeroCharacter를 순회하여 다른 팀 영웅만 적 후보로 취급
+	for (TActorIterator<AHRBHeroCharacter> It(World); It; ++It)
 	{
-		AHRBEnemyHeroCharacter* Enemy = *It;
-		if (!Enemy || Enemy->bIsDead)
+		AHRBHeroCharacter* Candidate = *It;
+		if (!Candidate || Candidate == this || Candidate->bIsDead)
 		{
 			continue;
 		}
 
-		const float Distance = FVector::Dist(MyLocation, Enemy->GetActorLocation());
+		// 같은 팀이면 제외 (HeroIndex 10단위 그룹 기준)
+		if (IsSameTeam(Candidate))
+		{
+			continue;
+		}
+
+		const float Distance = FVector::Dist(MyLocation, Candidate->GetActorLocation());
 		if (Distance <= AttackMoveDetectionRange && Distance < ClosestDistance)
 		{
 			ClosestDistance = Distance;
-			ClosestEnemy = Enemy;
+			ClosestEnemy = Candidate;
 		}
 	}
 
