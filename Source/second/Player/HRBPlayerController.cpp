@@ -175,8 +175,8 @@ void AHRBPlayerController::SelectHeroUnderCursor()
 	if (GetHitResultUnderCursor(ECC_Pawn, false, HitResult))
 	{
 		AHRBHeroCharacter* HitHero = Cast<AHRBHeroCharacter>(HitResult.GetActor());
-		// 적 영웅은 선택 불가 (공격 대상이므로)
-		if (HitHero && !HitHero->IsA<AHRBEnemyHeroCharacter>())
+		// 자기 팀 Hero만 선택 가능 (PC.Heroes에 등록된 Hero인지로 판정 — PvP)
+		if (HitHero && Heroes.Contains(HitHero))
 		{
 			ClearSelection();
 			HitHero->SetSelected(true);

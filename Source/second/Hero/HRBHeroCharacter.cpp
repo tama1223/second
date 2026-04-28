@@ -212,6 +212,19 @@ void AHRBHeroCharacter::Tick(float DeltaTime)
 	Super::Tick(DeltaTime);
 
 #if !UE_BUILD_SHIPPING
+	UWorld* DebugWorld = GetWorld();
+
+	// 선택 시각 피드백 (CVar 무관, 항상 표시) — 발 밑 노란 원
+	if (bSelected && !bIsDead && DebugWorld)
+	{
+		const float HalfHeight = GetCapsuleComponent()
+			? GetCapsuleComponent()->GetScaledCapsuleHalfHeight() : 90.f;
+		const FVector FootLoc = GetActorLocation() - FVector(0.f, 0.f, HalfHeight - 5.f);
+		DrawDebugCircle(DebugWorld, FootLoc, 80.f, 32,
+			FColor::Yellow, false, 0.f, 0, 5.f,
+			FVector(1.f, 0.f, 0.f), FVector(0.f, 1.f, 0.f), false);
+	}
+
 	if (CVarHRBDebugCombat.GetValueOnGameThread() <= 0 || bIsDead)
 	{
 		return;
