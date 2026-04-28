@@ -10,6 +10,7 @@
 #include "Player/HRBPlayerController.h"
 #include "Player/HRBSelectionHUD.h"
 #include "GameFramework/GameStateBase.h"
+#include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
 #include "Engine/World.h"
 
@@ -146,6 +147,45 @@ void AHRBGameMode::SpawnTeamForController(APlayerController* PC,
 			UE_LOG(LogTemp, Log, TEXT("[HRBGameMode] Spawned %s (HeroIndex=%d) at %s"),
 				*GetNameSafe(Hero), Hero->HeroIndex, *SpawnLocation.ToString());
 		}
+	}
+
+	// ── 카메라 폰을 팀 spawn 평균 위치로 이동 (시점 분리) ──
+	if (APawn* CameraPawn = PC->GetPawn())
+	{
+		FVector AvgLoc = FVector::ZeroVector;
+		int32 Count = 0;
+		for (const FVector& L : SpawnLocs)
+		{
+			AvgLoc += L;
+			Count++;
+		}
+		if (Count > 0)
+		{
+			AvgLoc /= Count;
+		}
+
+		// 팀 구분: HeroCharacterClass 면 Hero 팀(+X 향함), 아니면 Enemy 팀(-X 향함)
+		const bool bIsHeroTeam = (TeamClass == HeroCharacterClass);
+		const FRotator FaceRot = bIsHeroTeam
+			? FRotator(0.f, 0.f, 0.f)        // Hero 팀: +X 방향(상대 쪽)
+			: FRotator(0.f, 180.f, 0.f);     // Enemy 팀: -X 방향(상대 쪽)
+
+		CameraPawn->SetActorLocationAndRotation(
+			AvgLoc + FVector(0.f, 0.f, 50.f),
+			FaceRot,
+			/*bSweep=*/ false,
+			/*OutSweepHitResult=*/ nullptr,
+			ETeleportType::TeleportPhysics);
+
+		UE_LOG(LogTemp, Log,
+			TEXT("[HRBGameMode] Camera Pawn moved to team center: %s @ %s (Team=%s)"),
+			*CameraPawn->GetName(), *AvgLoc.ToString(),
+			bIsHeroTeam ? TEXT("Hero") : TEXT("Enemy"));
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning,
+			TEXT("[HRBGameMode] SpawnTeamForController: PC has no Pawn — camera move skipped"));
 	}
 }
 
