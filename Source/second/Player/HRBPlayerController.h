@@ -30,11 +30,14 @@ class SECOND_API AHRBPlayerController : public APlayerController
 public:
 	AHRBPlayerController();
 
-	/** 스폰된 영웅 등록 (GameMode에서 호출) */
+	/** 스폰된 영웅 등록 (GameMode에서 호출, 서버에서만) */
 	void RegisterHero(AHRBHeroCharacter* Hero);
 
-	/** 등록된 영웅 목록 */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "HRB|Selection")
+	//~ Replication
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+
+	/** 등록된 영웅 목록 (서버에서 채워서 OwningClient로 Replicate) */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Replicated, Category = "HRB|Selection")
 	TArray<TObjectPtr<AHRBHeroCharacter>> Heroes;
 
 	/** 현재 선택된 영웅들 */

@@ -11,6 +11,7 @@
 #include "InputMappingContext.h"
 #include "Engine/World.h"
 #include "GameFramework/HUD.h"
+#include "Net/UnrealNetwork.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(HRBPlayerController)
 
@@ -20,6 +21,12 @@ AHRBPlayerController::AHRBPlayerController()
 	bEnableClickEvents = true;
 	bEnableMouseOverEvents = true;
 	DefaultMouseCursor = EMouseCursor::Default;
+}
+
+void AHRBPlayerController::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+	DOREPLIFETIME_CONDITION(AHRBPlayerController, Heroes, COND_OwnerOnly);
 }
 
 void AHRBPlayerController::RegisterHero(AHRBHeroCharacter* Hero)
