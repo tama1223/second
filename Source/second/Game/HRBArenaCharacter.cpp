@@ -34,6 +34,15 @@ AHRBArenaCharacter::AHRBArenaCharacter()
 	GetCharacterMovement()->RotationRate = FRotator(0.0f, 540.0f, 0.0f);
 	GetCharacterMovement()->MaxWalkSpeed = MoveSpeed;
 
+	// 카메라 폰은 server-authoritative movement 비활성화 — 클라 로컬에서 자유 이동
+	// (RMB+WASD 카메라 팬을 위해 AddActorWorldOffset이 server reconciliation에 의해 되돌려지지 않게)
+	SetReplicates(false);
+	SetReplicateMovement(false);
+	GetCharacterMovement()->SetIsReplicated(false);
+	GetCharacterMovement()->DefaultLandMovementMode = MOVE_Flying;
+	GetCharacterMovement()->SetMovementMode(MOVE_Flying);
+	GetCharacterMovement()->GravityScale = 0.0f;
+
 	// HRBCameraComponent 생성 (Lyra 패턴)
 	HRBCameraComp = CreateDefaultSubobject<UHRBCameraComponent>(TEXT("HRBCamera"));
 	HRBCameraComp->SetupAttachment(GetRootComponent());
@@ -93,6 +102,9 @@ void AHRBArenaCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputC
 {
 	Super::SetupPlayerInputComponent(PlayerInputComponent);
 
+	UE_LOG(LogTemp, Warning, TEXT("[HRBArenaCharacter] SetupPlayerInputComponent — Pawn=%s Controller=%s"),
+		*GetNameSafe(this), *GetNameSafe(GetController()));
+
 	// ---- 런타임에서 InputAction 생성 ----
 
 	// 이동 (WASD) - Axis2D
@@ -141,7 +153,18 @@ void AHRBArenaCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputC
 		if (auto* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PC->GetLocalPlayer()))
 		{
 			Subsystem->AddMappingContext(IMC_Arena, 0);
+			UE_LOG(LogTemp, Warning, TEXT("[HRBArenaCharacter] IMC_Arena 등록 OK (PC=%s)"),
+				*GetNameSafe(PC));
 		}
+		else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[HRBArenaCharacter] EnhancedInputLocalPlayerSubsystem NOT FOUND"));
+		}
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[HRBArenaCharacter] GetController()가 PlayerController 아님: %s"),
+			*GetNameSafe(GetController()));
 	}
 
 	// ---- 액션 바인딩 ----
@@ -155,6 +178,12 @@ void AHRBArenaCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputC
 void AHRBArenaCharacter::HandleMove(const FInputActionValue& Value)
 {
 	APlayerController* PC = Cast<APlayerController>(GetController());
+
+	const FVector2D AxisDbg = Value.Get<FVector2D>();
+	const bool bRMBDbg = PC ? PC->IsInputKeyDown(EKeys::RightMouseButton) : false;
+	UE_LOG(LogTemp, Warning, TEXT("[HRBArenaCharacter] HandleMove Axis=(%.2f, %.2f) RMB=%d Pawn=%s"),
+		AxisDbg.X, AxisDbg.Y, bRMBDbg ? 1 : 0, *GetNameSafe(this));
+
 	if (!PC)
 	{
 		return;
@@ -178,8 +207,15 @@ void AHRBArenaCharacter::HandleMove(const FInputActionValue& Value)
 	const float DT = GetWorld()->GetDeltaSeconds();
 	const FVector Delta = PanDirection * PanSpeed * DT;
 
+	const FVector OldLoc = GetActorLocation();
+
 	// Sweep 없이 텔레포트식 이동 (카메라 폰은 가벼운 이동으로 충분)
 	AddActorWorldOffset(Delta, /*bSweep=*/ false, nullptr, ETeleportType::TeleportPhysics);
+
+	const FVector NewLoc = GetActorLocation();
+	const FString ActiveMode = HRBCameraComp ? GetNameSafe(HRBCameraComp->GetActiveCameraMode()) : TEXT("(no comp)");
+	UE_LOG(LogTemp, Warning, TEXT("  Pan: Old=%s New=%s Delta=%s PanSpeed=%.0f DT=%.4f CamMode=%s"),
+		*OldLoc.ToString(), *NewLoc.ToString(), *Delta.ToString(), PanSpeed, DT, *ActiveMode);
 }
 
 void AHRBArenaCharacter::HandleZoom(const FInputActionValue& Value)
