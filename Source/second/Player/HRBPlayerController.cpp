@@ -12,6 +12,7 @@
 #include "Engine/World.h"
 #include "GameFramework/HUD.h"
 #include "Net/UnrealNetwork.h"
+#include "Engine/LocalPlayer.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(HRBPlayerController)
 
@@ -354,11 +355,10 @@ void AHRBPlayerController::ServerCommandAttack_Implementation(const TArray<AHRBH
 			continue;
 		}
 
-		const float Distance = FVector::Dist(H->GetActorLocation(), Target->GetActorLocation());
-		if (Distance <= H->AttackRange)
+		if (H->IsInAttackRange(Target))
 		{
 			H->Attack(Target);
-			UE_LOG(LogTemp, Log, TEXT("[HRBPlayerController] (Server) Attack: %s(%d heroes) -> %s"),
+			UE_LOG(LogTemp, Log, TEXT("[HRBPlayerController] InRange [Server] Attack: %s(%d heroes) -> %s"),
 				*GetNameSafe(InHeroes.Num() > 0 ? InHeroes[0] : nullptr),
 				InHeroes.Num(),
 				*GetNameSafe(Target));
@@ -367,6 +367,10 @@ void AHRBPlayerController::ServerCommandAttack_Implementation(const TArray<AHRBH
 		{
 			// 사거리 밖이면 자동 추격 + 사거리 진입 시 자동 공격
 			H->AttackMoveToLocation(Target->GetActorLocation(), Target);
+			UE_LOG(LogTemp, Log, TEXT("[HRBPlayerController] OutOfRange [Server] AttackMove: %s(%d heroes) -> %s"),
+				*GetNameSafe(InHeroes.Num() > 0 ? InHeroes[0] : nullptr),
+				InHeroes.Num(),
+				*GetNameSafe(Target));
 		}
 	}
 }

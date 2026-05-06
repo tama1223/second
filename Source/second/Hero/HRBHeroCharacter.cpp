@@ -409,10 +409,10 @@ void AHRBHeroCharacter::Attack(AHRBHeroCharacter* Target)
 		return;
 	}
 
-	// 사거리 체크
-	const float Distance = FVector::Dist(GetActorLocation(), Target->GetActorLocation());
-	if (Distance > AttackRange)
+	// 사거리 체크 (평면 2D 기준 — 디버그 원과 시각/논리 일치)
+	if (!IsInAttackRange(Target))
 	{
+		const float Distance = FVector::Dist2D(GetActorLocation(), Target->GetActorLocation());
 		UE_LOG(LogTemp, Log, TEXT("[HRBHeroCharacter] Hero %d: Target out of range (%.0f > %.0f)"),
 			HeroIndex, Distance, AttackRange);
 		return;
@@ -534,9 +534,7 @@ void AHRBHeroCharacter::AttackMoveScanTick()
 	// 현재 교전 타겟이 있는 경우
 	if (AttackMoveTarget && !AttackMoveTarget->bIsDead)
 	{
-		const float Distance = FVector::Dist(GetActorLocation(), AttackMoveTarget->GetActorLocation());
-
-		if (Distance <= AttackRange)
+		if (IsInAttackRange(AttackMoveTarget))
 		{
 			// 사거리 내 → 공격
 			Attack(AttackMoveTarget);
@@ -561,8 +559,7 @@ void AHRBHeroCharacter::AttackMoveScanTick()
 		// 적 발견 → 교전
 		AttackMoveTarget = FoundEnemy;
 
-		const float Distance = FVector::Dist(GetActorLocation(), FoundEnemy->GetActorLocation());
-		if (Distance <= AttackRange)
+		if (IsInAttackRange(FoundEnemy))
 		{
 			Attack(FoundEnemy);
 		}

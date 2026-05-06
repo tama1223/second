@@ -45,6 +45,15 @@ public:
 		return (HeroIndex / 10) == (Other->HeroIndex / 10);
 	}
 
+	/** 평면(2D) 거리 기준 사거리 체크. 디버그 원과 시각/논리 일치. */
+	UFUNCTION(BlueprintPure, Category = "HRB|Combat")
+	bool IsInAttackRange(const AHRBHeroCharacter* Target) const
+	{
+		if (!Target) { return false; }
+		const float D = FVector::Dist2D(GetActorLocation(), Target->GetActorLocation());
+		return D <= AttackRange;
+	}
+
 	/** 선택 상태 설정 */
 	UFUNCTION(BlueprintCallable, Category = "HRB|Hero")
 	void SetSelected(bool bInSelected);
