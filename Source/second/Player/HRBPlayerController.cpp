@@ -47,6 +47,15 @@ void AHRBPlayerController::BeginPlay()
 	InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
 	InputMode.SetHideCursorDuringCapture(false);
 	SetInputMode(InputMode);
+
+#if !UE_BUILD_SHIPPING
+	// 개발 빌드 한정: 로컬 클라에서 디버그 시각화 자동 켜기
+	if (IsLocalController())
+	{
+		ConsoleCommand(TEXT("HRB.Debug.ShowCombat 1"), true);
+		ConsoleCommand(TEXT("show Collision"), true);
+	}
+#endif
 }
 
 void AHRBPlayerController::SetupInputComponent()
@@ -414,6 +423,9 @@ void AHRBPlayerController::HandleAttackMoveConfirm()
 	FHitResult HitResult;
 	if (GetHitResultUnderCursor(ECC_Pawn, false, HitResult))
 	{
+		auto Target = HitResult.GetActor();
+		UE_LOG(LogTemp, Log, TEXT("Target %p"), Target);
+
 		if (AHRBEnemyHeroCharacter* EnemyTarget = Cast<AHRBEnemyHeroCharacter>(HitResult.GetActor()))
 		{
 			// 적 클릭 → 직접 공격 명령
