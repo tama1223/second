@@ -424,7 +424,7 @@ void AHRBPlayerController::HandleAttackMoveConfirm()
 	if (GetHitResultUnderCursor(ECC_Pawn, false, HitResult))
 	{
 		auto Target = HitResult.GetActor();
-		UE_LOG(LogTemp, Log, TEXT("Target %p"), Target);
+		UE_LOG(LogTemp, Log, TEXT("Target %s"), *GetNameSafe(Target));
 
 		if (AHRBEnemyHeroCharacter* EnemyTarget = Cast<AHRBEnemyHeroCharacter>(HitResult.GetActor()))
 		{
