@@ -345,12 +345,7 @@ void AHRBPlayerController::ServerCommandAttack_Implementation(const TArray<AHRBH
 	if (!Target || Target->bIsDead)
 	{
 		return;
-	}
-
-	UE_LOG(LogTemp, Log, TEXT("[HRBPlayerController] (Server) Attack: %s(%d heroes) -> %s"),
-		*GetNameSafe(InHeroes.Num() > 0 ? InHeroes[0] : nullptr),
-		InHeroes.Num(),
-		*GetNameSafe(Target));
+	}	
 
 	for (AHRBHeroCharacter* H : InHeroes)
 	{
@@ -363,7 +358,10 @@ void AHRBPlayerController::ServerCommandAttack_Implementation(const TArray<AHRBH
 		if (Distance <= H->AttackRange)
 		{
 			H->Attack(Target);
-			UE_LOG(LogTemp, Log, TEXT("[ATTACK]"));
+			UE_LOG(LogTemp, Log, TEXT("[HRBPlayerController] (Server) Attack: %s(%d heroes) -> %s"),
+				*GetNameSafe(InHeroes.Num() > 0 ? InHeroes[0] : nullptr),
+				InHeroes.Num(),
+				*GetNameSafe(Target));
 		}
 		else
 		{
@@ -404,7 +402,7 @@ void AHRBPlayerController::HandleAttackMovePressed(const FInputActionValue& Valu
 	UE_LOG(LogTemp, Log, TEXT("[HRBPlayerController] AttackMove mode activated (press LMB to confirm)"));
 }
 
-PRAGMA_DISABLE_OPTIMIZATION
+UE_DISABLE_OPTIMIZATION
 void AHRBPlayerController::HandleAttackMoveConfirm()
 {
 	// 공격이동 모드 해제
@@ -456,7 +454,7 @@ void AHRBPlayerController::HandleAttackMoveConfirm()
 			Raw.Num(), Destination.X, Destination.Y, Destination.Z);
 	}
 }
-PRAGMA_ENABLE_OPTIMIZATION
+UE_ENABLE_OPTIMIZATION
 
 void AHRBPlayerController::SpawnAttackMoveMarker(const FVector& Location)
 {
