@@ -435,7 +435,15 @@ void AHRBHeroCharacter::Attack(AHRBHeroCharacter* Target)
 	// 공격 이펙트
 	PlayAttackEffect(Target);
 
-	// Attack 애니 1회 재생 → 종료 후 Walking 복귀
+	// Attack 애니 1회 재생 → 전체 클라 동기화 (NetMulticast)
+	Multicast_PlayAttackAnim();
+
+	UE_LOG(LogTemp, Log, TEXT("[HRBHeroCharacter] Hero %d attacked Hero %d for %.1f damage"),
+		HeroIndex, Target->HeroIndex, AttackDamage);
+}
+
+void AHRBHeroCharacter::Multicast_PlayAttackAnim_Implementation()
+{
 	if (AttackAnim && GetMesh())
 	{
 		GetMesh()->SetAnimation(AttackAnim);
@@ -444,9 +452,6 @@ void AHRBHeroCharacter::Attack(AHRBHeroCharacter* Target)
 		GetWorld()->GetTimerManager().SetTimer(AttackAnimReturnTimer, this,
 			&AHRBHeroCharacter::ReturnToWalkingAnim, Len, false);
 	}
-
-	UE_LOG(LogTemp, Log, TEXT("[HRBHeroCharacter] Hero %d attacked Hero %d for %.1f damage"),
-		HeroIndex, Target->HeroIndex, AttackDamage);
 }
 
 void AHRBHeroCharacter::ReturnToWalkingAnim()

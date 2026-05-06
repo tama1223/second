@@ -103,6 +103,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "HRB|Combat")
 	void Attack(AHRBHeroCharacter* Target);
 
+	/** 공격 애니 클라 동기화 — NetMulticast Unreliable */
+	UFUNCTION(NetMulticast, Unreliable)
+	void Multicast_PlayAttackAnim();
+
 	// ---------- 공격이동 (A+클릭) ----------
 
 	/** 공격이동 감지 범위 */
