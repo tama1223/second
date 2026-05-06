@@ -465,7 +465,7 @@ void AHRBHeroCharacter::ReturnToWalkingAnim()
 
 // ==================== 공격이동 ====================
 
-void AHRBHeroCharacter::AttackMoveToLocation(const FVector& Destination)
+void AHRBHeroCharacter::AttackMoveToLocation(const FVector& Destination, AHRBHeroCharacter* InitialTarget)
 {
 	// 서버 Authoritative
 	if (!HasAuthority())
@@ -483,7 +483,7 @@ void AHRBHeroCharacter::AttackMoveToLocation(const FVector& Destination)
 
 	bIsAttackMoving = true;
 	AttackMoveDestination = Destination;
-	AttackMoveTarget = nullptr;
+	AttackMoveTarget = InitialTarget;
 
 	// 목적지로 이동 시작
 	MoveDestination = Destination;
@@ -501,8 +501,9 @@ void AHRBHeroCharacter::AttackMoveToLocation(const FVector& Destination)
 			AttackMoveScanInterval, /*bLoop=*/true);
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("[HRBHeroCharacter] Hero %d: AttackMove to (%.0f, %.0f, %.0f)"),
-		HeroIndex, Destination.X, Destination.Y, Destination.Z);
+	UE_LOG(LogTemp, Log, TEXT("[HRBHeroCharacter] Hero %d: AttackMove to (%.0f, %.0f, %.0f), InitialTarget=%s"),
+		HeroIndex, Destination.X, Destination.Y, Destination.Z,
+		*GetNameSafe(InitialTarget));
 }
 
 void AHRBHeroCharacter::StopAttackMove()

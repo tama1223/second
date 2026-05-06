@@ -365,8 +365,8 @@ void AHRBPlayerController::ServerCommandAttack_Implementation(const TArray<AHRBH
 		}
 		else
 		{
-			// 사거리 밖이면 타겟 위치로 이동 (자동 사거리 진입은 Phase 2 과제)
-			H->MoveToLocation(Target->GetActorLocation());
+			// 사거리 밖이면 자동 추격 + 사거리 진입 시 자동 공격
+			H->AttackMoveToLocation(Target->GetActorLocation(), Target);
 		}
 	}
 }

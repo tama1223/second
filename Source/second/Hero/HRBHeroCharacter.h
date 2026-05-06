@@ -121,9 +121,9 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "HRB|Combat")
 	TObjectPtr<AHRBHeroCharacter> AttackMoveTarget;
 
-	/** 공격이동 시작: 이동 + 적 탐색 타이머 */
+	/** 공격이동 시작: 이동 + 적 탐색 타이머. InitialTarget 지정 시 즉시 추격 대상으로 설정 */
 	UFUNCTION(BlueprintCallable, Category = "HRB|Combat")
-	void AttackMoveToLocation(const FVector& Destination);
+	void AttackMoveToLocation(const FVector& Destination, AHRBHeroCharacter* InitialTarget = nullptr);
 
 	/** 공격이동 정지 */
 	UFUNCTION(BlueprintCallable, Category = "HRB|Combat")
