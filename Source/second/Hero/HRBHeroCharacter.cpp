@@ -131,6 +131,10 @@ void AHRBHeroCharacter::OnRep_bIsDead()
 	{
 		MeshComp->SetVisibility(!bIsDead, true);  // bPropagateToChildren=true
 	}
+	if (HealthBarComp)
+	{
+		HealthBarComp->SetVisibility(!bIsDead, true);  // bPropagateToChildren=true
+	}
 	SetActorEnableCollision(!bIsDead);
 }
 
@@ -161,6 +165,12 @@ void AHRBHeroCharacter::Respawn(const FVector& NewLocation)
 	if (USkeletalMeshComponent* MeshComp = GetMesh())
 	{
 		MeshComp->SetVisibility(true, true);  // bPropagateToChildren=true
+	}
+
+	// HP바 다시 표시
+	if (HealthBarComp)
+	{
+		HealthBarComp->SetVisibility(true, true);  // bPropagateToChildren=true
 	}
 
 	// AIController 재 possess (SpawnDefaultController가 자동으로 없으면 스폰, 있으면 재사용)
@@ -424,6 +434,12 @@ void AHRBHeroCharacter::Die()
 	if (USkeletalMeshComponent* MeshComp = GetMesh())
 	{
 		MeshComp->SetVisibility(false, true);  // bPropagateToChildren=true
+	}
+
+	// HP바 숨김 (서버 측)
+	if (HealthBarComp)
+	{
+		HealthBarComp->SetVisibility(false, true);  // bPropagateToChildren=true
 	}
 
 	// GameMode에 라운드 종료 확인 요청
