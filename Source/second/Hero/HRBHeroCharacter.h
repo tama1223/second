@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
+#include "Components/CapsuleComponent.h"
 #include "HRBHeroCharacter.generated.h"
 
 class UDecalComponent;
@@ -45,13 +46,15 @@ public:
 		return (HeroIndex / 10) == (Other->HeroIndex / 10);
 	}
 
-	/** 평면(2D) 거리 기준 사거리 체크. 디버그 원과 시각/논리 일치. */
+	/** 평면(2D) 거리 + 두 캡슐 반지름 보정. 캡슐 표면 기준 사거리 체크. */
 	UFUNCTION(BlueprintPure, Category = "HRB|Combat")
 	bool IsInAttackRange(const AHRBHeroCharacter* Target) const
 	{
-		if (!Target) { return false; }
-		const float D = FVector::Dist2D(GetActorLocation(), Target->GetActorLocation());
-		return D <= AttackRange;
+		if (!Target) return false;
+		const float D    = FVector::Dist2D(GetActorLocation(), Target->GetActorLocation());
+		const float MyR  = GetCapsuleComponent() ? GetCapsuleComponent()->GetScaledCapsuleRadius() : 0.f;
+		const float TR   = Target->GetCapsuleComponent() ? Target->GetCapsuleComponent()->GetScaledCapsuleRadius() : 0.f;
+		return D <= AttackRange + MyR + TR;
 	}
 
 	/** 선택 상태 설정 */
