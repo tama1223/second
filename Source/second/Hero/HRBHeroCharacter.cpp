@@ -420,6 +420,14 @@ void AHRBHeroCharacter::Attack(AHRBHeroCharacter* Target)
 
 	LastAttackTime = CurrentTime;
 
+	// 적 방향으로 즉시 회전 (Yaw만, RTS 정석)
+	const FVector ToTarget = (Target->GetActorLocation() - GetActorLocation()).GetSafeNormal2D();
+	if (!ToTarget.IsNearlyZero())
+	{
+		const float TargetYaw = ToTarget.Rotation().Yaw;
+		SetActorRotation(FRotator(0.f, TargetYaw, 0.f));
+	}
+
 	// 데미지 적용
 	FDamageEvent DamageEvent;
 	Target->TakeDamage(AttackDamage, DamageEvent, GetController(), this);
