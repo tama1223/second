@@ -527,6 +527,8 @@ void AHRBHeroCharacter::AttackMoveScanTick()
 {
 	if (bIsDead || !bIsAttackMoving)
 	{
+		UE_LOG(LogTemp, Log, TEXT("[ScanTick] Hero %d: dead=%d isAttackMoving=%d → Stop"),
+			HeroIndex, bIsDead, bIsAttackMoving);
 		StopAttackMove();
 		return;
 	}
@@ -536,11 +538,16 @@ void AHRBHeroCharacter::AttackMoveScanTick()
 	{
 		if (IsInAttackRange(AttackMoveTarget))
 		{
+			UE_LOG(LogTemp, Log, TEXT("[ScanTick] Hero %d: existing target %s in range → Attack"),
+				HeroIndex, *GetNameSafe(AttackMoveTarget));
 			// 사거리 내 → 공격
 			Attack(AttackMoveTarget);
 		}
 		else
 		{
+			const float Dist2D = FVector::Dist2D(GetActorLocation(), AttackMoveTarget->GetActorLocation());
+			UE_LOG(LogTemp, Log, TEXT("[ScanTick] Hero %d: existing target %s out of range (dist2D=%.0f) → MoveToActor"),
+				HeroIndex, *GetNameSafe(AttackMoveTarget), Dist2D);
 			// 사거리 밖 → 추적
 			if (AAIController* AIC = Cast<AAIController>(GetController()))
 			{
@@ -556,15 +563,21 @@ void AHRBHeroCharacter::AttackMoveScanTick()
 	AHRBHeroCharacter* FoundEnemy = FindEnemyInDetectionRange();
 	if (FoundEnemy)
 	{
+		UE_LOG(LogTemp, Log, TEXT("[ScanTick] Hero %d: found new enemy %s"),
+			HeroIndex, *GetNameSafe(FoundEnemy));
 		// 적 발견 → 교전
 		AttackMoveTarget = FoundEnemy;
 
 		if (IsInAttackRange(FoundEnemy))
 		{
+			UE_LOG(LogTemp, Log, TEXT("[ScanTick] Hero %d: new enemy in range → Attack"), HeroIndex);
 			Attack(FoundEnemy);
 		}
 		else
 		{
+			const float Dist2D = FVector::Dist2D(GetActorLocation(), FoundEnemy->GetActorLocation());
+			UE_LOG(LogTemp, Log, TEXT("[ScanTick] Hero %d: new enemy out of range (dist2D=%.0f) → MoveToActor"),
+				HeroIndex, Dist2D);
 			if (AAIController* AIC = Cast<AAIController>(GetController()))
 			{
 				AIC->MoveToActor(FoundEnemy, AttackRange * 0.8f);
@@ -578,8 +591,13 @@ void AHRBHeroCharacter::AttackMoveScanTick()
 	if (DistToDest <= 100.0f)
 	{
 		// 목적지 도착 → 공격이동 완료
-		UE_LOG(LogTemp, Log, TEXT("[HRBHeroCharacter] Hero %d: AttackMove destination reached"), HeroIndex);
+		UE_LOG(LogTemp, Log, TEXT("[ScanTick] Hero %d: no enemy + destination reached → Stop"), HeroIndex);
 		StopAttackMove();
+	}
+	else
+	{
+		UE_LOG(LogTemp, Log, TEXT("[ScanTick] Hero %d: no enemy, distToDest=%.0f → still moving"),
+			HeroIndex, DistToDest);
 	}
 	// 아직 이동 중이면 계속 스캔
 }
