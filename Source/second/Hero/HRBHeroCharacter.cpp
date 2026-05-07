@@ -121,7 +121,59 @@ void AHRBHeroCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Ou
 
 	DOREPLIFETIME(AHRBHeroCharacter, HeroIndex);
 	DOREPLIFETIME(AHRBHeroCharacter, CurrentHP);
-	DOREPLIFETIME(AHRBHeroCharacter, bIsDead);
+	DOREPLIFETIME(AHRBHeroCharacter, bIsDead);  // RepNotify 변경 후에도 DOREPLIFETIME 그대로 사용
+}
+
+void AHRBHeroCharacter::OnRep_bIsDead()
+{
+	// 클라이언트 측 사망/부활 시각 처리
+	if (USkeletalMeshComponent* MeshComp = GetMesh())
+	{
+		MeshComp->SetVisibility(!bIsDead, true);  // bPropagateToChildren=true
+	}
+	SetActorEnableCollision(!bIsDead);
+}
+
+void AHRBHeroCharacter::Respawn(const FVector& NewLocation)
+{
+	// 서버 권한
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	if (!bIsDead)
+	{
+		return;  // 살아있으면 무시
+	}
+
+	bIsDead = false;
+	CurrentHP = MaxHP;
+
+	// 위치/회전 reset
+	SetActorLocation(NewLocation);
+	SetActorRotation(FRotator::ZeroRotator);
+
+	// 콜리전 on
+	SetActorEnableCollision(true);
+
+	// 메시 visible
+	if (USkeletalMeshComponent* MeshComp = GetMesh())
+	{
+		MeshComp->SetVisibility(true, true);  // bPropagateToChildren=true
+	}
+
+	// AIController 재 possess (SpawnDefaultController가 자동으로 없으면 스폰, 있으면 재사용)
+	SpawnDefaultController();
+
+	// HP바 갱신
+	if (HealthBarComp)
+	{
+		HealthBarComp->UpdateHP(CurrentHP, MaxHP);
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("[HRBHeroCharacter] Hero %d respawned at %s"),
+		HeroIndex, *NewLocation.ToString());
 }
 
 void AHRBHeroCharacter::OnRep_CurrentHP()
@@ -368,6 +420,12 @@ void AHRBHeroCharacter::Die()
 	// 콜리전 비활성화
 	SetActorEnableCollision(false);
 
+	// 메시 숨김 (서버 측 — 클라이언트는 OnRep_bIsDead에서 처리)
+	if (USkeletalMeshComponent* MeshComp = GetMesh())
+	{
+		MeshComp->SetVisibility(false, true);  // bPropagateToChildren=true
+	}
+
 	// GameMode에 라운드 종료 확인 요청
 	if (UWorld* World = GetWorld())
 	{
@@ -376,17 +434,6 @@ void AHRBHeroCharacter::Die()
 			GM->CheckRoundEnd();
 		}
 	}
-
-	// 1초 후 Destroy
-	FTimerHandle DestroyTimerHandle;
-	TWeakObjectPtr<AHRBHeroCharacter> WeakThis(this);
-	GetWorldTimerManager().SetTimer(DestroyTimerHandle, [WeakThis]()
-	{
-		if (WeakThis.IsValid())
-		{
-			WeakThis->Destroy();
-		}
-	}, 1.0f, false);
 }
 
 void AHRBHeroCharacter::Attack(AHRBHeroCharacter* Target)

@@ -93,8 +93,15 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HRB|Combat")
 	float AttackCooldown = 1.5f;
 
-	UPROPERTY(Replicated, VisibleAnywhere, BlueprintReadOnly, Category = "HRB|Combat")
+	UPROPERTY(ReplicatedUsing = OnRep_bIsDead, VisibleAnywhere, BlueprintReadOnly, Category = "HRB|Combat")
 	bool bIsDead = false;
+
+	/** bIsDead 변경 시 클라이언트에서 호출 — 메시 가시성/콜리전 처리 */
+	UFUNCTION()
+	void OnRep_bIsDead();
+
+	/** 사망 후 리스폰. 서버에서 호출. */
+	void Respawn(const FVector& NewLocation);
 
 	/** CurrentHP 변경 시 클라이언트에서 호출 — HP바 갱신 */
 	UFUNCTION()

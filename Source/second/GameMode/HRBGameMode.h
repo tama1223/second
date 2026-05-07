@@ -53,6 +53,13 @@ public:
 	void CheckRoundEnd();
 
 protected:
+	/** 인터미션 종료 후 전체 영웅 리스폰 */
+	void RestartRound();
+
+	/** 라운드 인터미션 타이머 핸들 */
+	FTimerHandle RoundIntermissionTimer;
+
+protected:
 	/** 에디터에서 설정할 기본 Experience */
 	UPROPERTY(EditDefaultsOnly, Category = "HRB|Experience")
 	TSoftObjectPtr<UHRBExperienceDefinition> DefaultExperience;

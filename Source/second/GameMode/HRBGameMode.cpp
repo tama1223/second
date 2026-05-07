@@ -297,12 +297,53 @@ void AHRBGameMode::CheckRoundEnd()
 		}
 	}
 
+	// 양 팀 모두 생존 중이면 라운드 계속
+	if (bPlayerTeamAlive && bEnemyTeamAlive)
+	{
+		return;
+	}
+
+	// 이미 인터미션 타이머가 활성화되어 있으면 중복 처리 방지
+	if (GetWorldTimerManager().IsTimerActive(RoundIntermissionTimer))
+	{
+		return;
+	}
+
 	if (!bPlayerTeamAlive)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[GameMode] 라운드 종료 - 적 팀 승리"));
 	}
-	else if (!bEnemyTeamAlive)
+	else
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[GameMode] 라운드 종료 - 플레이어 팀 승리"));
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("[GameMode] 5초 후 라운드 재시작"));
+	GetWorldTimerManager().SetTimer(RoundIntermissionTimer, this,
+		&AHRBGameMode::RestartRound, 5.0f, false);
+}
+
+void AHRBGameMode::RestartRound()
+{
+	UE_LOG(LogTemp, Warning, TEXT("[GameMode] 라운드 재시작 - 전체 영웅 리스폰"));
+
+	// Hero 팀 부활
+	for (int32 i = 0; i < SpawnedHeroes.Num(); ++i)
+	{
+		AHRBHeroCharacter* Hero = SpawnedHeroes[i];
+		if (Hero && i < HeroSpawnLocations.Num())
+		{
+			Hero->Respawn(HeroSpawnLocations[i]);
+		}
+	}
+
+	// Enemy 팀 부활
+	for (int32 i = 0; i < SpawnedEnemies.Num(); ++i)
+	{
+		AHRBEnemyHeroCharacter* Enemy = SpawnedEnemies[i];
+		if (Enemy && i < EnemySpawnLocations.Num())
+		{
+			Enemy->Respawn(EnemySpawnLocations[i]);
+		}
 	}
 }
